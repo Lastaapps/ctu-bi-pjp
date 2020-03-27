@@ -66,3 +66,17 @@ Regardless of the source code supplied, all produced binaries gives "Answer to t
 ```
 42
 ```
+
+Generate intermediate code looks like this:
+```
+; ModuleID = 'sfe'
+source_filename = "sfe"
+
+declare i32 @writeln(i32)
+
+define i32 @main() {
+entry:
+  %0 = call i32 @writeln(i32 42)
+  ret i32 0
+}
+```

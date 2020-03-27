@@ -21,7 +21,7 @@ For Ubuntu or Debian based OS use:
 sudo apt install llvm llvm-dev clang cmake git
 ```
 
-## Build ##
+## Build##
 
 ```
 mkdir build &&
@@ -37,14 +37,16 @@ Sufficient workaround should be ``touch /usr/lib/llvm-9/bin/yaml-bench``
 cd build &&
 make
 ```
+Builded compiler outputs intermediate code from which llvm can generate a binary.
 
 ## Test samples ##
-
+Run from project root. Compiles binary for all example source codes in ``sources/`` directory
 ```
 ./test
 ```
 
 ## Compile a program ##
+Use supplied script to compile source code into binary.
 ```
 ./mila test.mila -o test
 ```
@@ -62,8 +64,8 @@ clang "$OutputFileBaseName.s" "${DIR}/fce.c" -o "$OutputFileName"
 ```
 
 ## Compiler requirements ##
-Compiler process source code supplied on the stdin and produces LLVM ir on its stdout.
-All errors are should be written to the stdin, non zero return code should be return in case of error.
+Compiler processes source code supplied on the stdin and produces LLVM ir on its stdout.
+All errors should be written to the stdin, non zero return code should be return in case of error.
 No arguments are required, but the mila wrapper is prepared for -v/--verbose, -d/--debug options which can be passed to the compiler.
 Other arguments can be also added for various purposes.
 

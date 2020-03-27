@@ -13,6 +13,10 @@
 
 LLVM supplies a set of tutorials which is available here: https://llvm.org/docs/tutorial/
 
+## Dependencies ##
+
+LLVM including headers. Bases on your OS distribution, it would be usually packages like `llvm`, `llvm-dev`.
+
 ## Build ##
 
 ```
@@ -41,7 +45,7 @@ make
 
 **How does mila wrapper script works?**
 
-It runs build/sfe on the source code, then llc and clang (with the fce.c file added):
+It runs `build/sfe` on the source code, then `llc` and `clang` (with the fce.c file added):
 
 ```
 rm -f "$OutputFileBaseName.ir"

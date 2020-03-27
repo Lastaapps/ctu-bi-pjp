@@ -65,7 +65,7 @@ clang "$OutputFileBaseName.s" "${DIR}/fce.c" -o "$OutputFileName"
 
 ## Compiler requirements ##
 Compiler processes source code supplied on the stdin and produces LLVM ir on its stdout.
-All errors should be written to the stdin, non zero return code should be return in case of error.
+All errors should be written to the stderr, non zero return code should be return in case of error.
 No arguments are required, but the mila wrapper is prepared for -v/--verbose, -d/--debug options which can be passed to the compiler.
 Other arguments can be also added for various purposes.
 

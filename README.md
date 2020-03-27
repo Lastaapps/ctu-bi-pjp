@@ -16,6 +16,10 @@ LLVM supplies a set of tutorials which is available here: https://llvm.org/docs/
 ## Dependencies ##
 
 LLVM including headers. Bases on your OS distribution, it would be usually packages like: `llvm`, `llvm-dev`. For downloading this repository and building it: `git`, `cmake`, `clang`.
+For Ubuntu or Debian based OS use:
+```
+sudo apt install llvm llvm-dev clang cmake git
+```
 
 ## Build ##
 
@@ -25,14 +29,14 @@ cd build &&
 cmake ..
 make
 ```
+**NOTE:** If you by any change encounter **yaml-bench** error with llvm-9, follow this guide: https://weliveindetail.github.io/blog/post/2019/12/02/apt-llvm-9-dev-yaml-bench.html .
+Sufficient workaround should be ``touch /usr/lib/llvm-9/bin/yaml-bench``
 
 **To rebuild:**
 ```
 cd build &&
 make
 ```
-
-If you by any change encounter yaml-bench error, follow this guide: https://weliveindetail.github.io/blog/post/2019/12/02/apt-llvm-9-dev-yaml-bench.html
 
 ## Test samples ##
 
@@ -69,7 +73,7 @@ Regardless of the source code supplied, all produced binaries gives "Answer to t
 42
 ```
 
-Generate intermediate code looks like this:
+Generated intermediate code looks like this:
 ```
 ; ModuleID = 'sfe'
 source_filename = "sfe"

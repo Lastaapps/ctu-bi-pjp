@@ -1,0 +1,6 @@
+#!/bin/bash
+cd samples
+for i in *.mila ; do
+  j="${i%%.*}"
+  ../mila "$i" -o "$j"
+done

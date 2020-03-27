@@ -15,7 +15,7 @@ LLVM supplies a set of tutorials which is available here: https://llvm.org/docs/
 
 ## Dependencies ##
 
-LLVM including headers. Bases on your OS distribution, it would be usually packages like `llvm`, `llvm-dev`.
+LLVM including headers. Bases on your OS distribution, it would be usually packages like `llvm`, `llvm-dev`. For downloading this repositoring and building it: `git`, `cmake`, `clang`.
 
 ## Build ##
 
@@ -31,6 +31,8 @@ make
 cd build &&
 make
 ```
+
+If you by any change encounterd yaml-bench error, follow this guide: https://weliveindetail.github.io/blog/post/2019/12/02/apt-llvm-9-dev-yaml-bench.html
 
 ## Test samples ##
 

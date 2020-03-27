@@ -15,7 +15,7 @@ LLVM supplies a set of tutorials which is available here: https://llvm.org/docs/
 
 ## Dependencies ##
 
-LLVM including headers. Bases on your OS distribution, it would be usually packages like `llvm`, `llvm-dev`. For downloading this repositoring and building it: `git`, `cmake`, `clang`.
+LLVM including headers. Bases on your OS distribution, it would be usually packages like: `llvm`, `llvm-dev`. For downloading this repository and building it: `git`, `cmake`, `clang`.
 
 ## Build ##
 

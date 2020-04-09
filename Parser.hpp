@@ -32,9 +32,9 @@ private:
     Lexer m_Lexer;            // lexer is used to read tokens
     int CurTok;               // to keep the current token
     
-    LLVMContext SfeContext;   // llvm context
-    IRBuilder<> SfeBuilder;   // llvm builder
-    Module SfeModule;         // llvm module
+    LLVMContext MilaContext;   // llvm context
+    IRBuilder<> MilaBuilder;   // llvm builder
+    Module MilaModule;         // llvm module
 };
 
 #endif //PJPPROJECT_PARSER_HPP

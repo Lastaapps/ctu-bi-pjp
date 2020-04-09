@@ -1,6 +1,6 @@
 #include "Parser.hpp"
 
-Parser::Parser() : SfeContext(), SfeBuilder(SfeContext), SfeModule("sfe", SfeContext) {
+Parser::Parser() : MilaContext(), MilaBuilder(MilaContext), MilaModule("mila", MilaContext) {
 }
 
 bool Parser::Parse() {
@@ -12,32 +12,32 @@ const Module& Parser::Generate() {
 
     // create writeln function
     {
-      std::vector<Type*> Ints(1, Type::getInt32Ty(SfeContext));
-      FunctionType * FT = FunctionType::get(Type::getInt32Ty(SfeContext), Ints, false);
-      Function * F = Function::Create(FT, Function::ExternalLinkage, "writeln", SfeModule);
+      std::vector<Type*> Ints(1, Type::getInt32Ty(MilaContext));
+      FunctionType * FT = FunctionType::get(Type::getInt32Ty(MilaContext), Ints, false);
+      Function * F = Function::Create(FT, Function::ExternalLinkage, "writeln", MilaModule);
       for (auto & Arg : F->args())
           Arg.setName("x");
     }
 
     // create main function
     {
-      FunctionType * FT = FunctionType::get(Type::getInt32Ty(SfeContext), false);
-      Function * MainFunction = Function::Create(FT, Function::ExternalLinkage, "main", SfeModule);
+      FunctionType * FT = FunctionType::get(Type::getInt32Ty(MilaContext), false);
+      Function * MainFunction = Function::Create(FT, Function::ExternalLinkage, "main", MilaModule);
 
       // block
-      BasicBlock * BB = BasicBlock::Create(SfeContext, "entry", MainFunction);
-      SfeBuilder.SetInsertPoint(BB);
+      BasicBlock * BB = BasicBlock::Create(MilaContext, "entry", MainFunction);
+      MilaBuilder.SetInsertPoint(BB);
 
       // call writeln with value from lexel
-      SfeBuilder.CreateCall(SfeModule.getFunction("writeln"), {
-        ConstantInt::get(SfeContext, APInt(32, m_Lexer.numVal()))
+      MilaBuilder.CreateCall(MilaModule.getFunction("writeln"), {
+        ConstantInt::get(MilaContext, APInt(32, m_Lexer.numVal()))
       });
 
       // return 0
-      SfeBuilder.CreateRet(ConstantInt::get(Type::getInt32Ty(SfeContext), 0));
+      MilaBuilder.CreateRet(ConstantInt::get(Type::getInt32Ty(MilaContext), 0));
     }
 
-    return this->SfeModule;
+    return this->MilaModule;
 }
 
 /*

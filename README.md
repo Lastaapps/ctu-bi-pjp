@@ -9,11 +9,11 @@
 - mila - wrapper script for your compiler
 - test - test script with comiples all samples
 
-## Literature ##
+## Literature
 
 LLVM supplies a set of tutorials which is available here: https://llvm.org/docs/tutorial/
 
-## Dependencies ##
+## Dependencies
 
 LLVM including headers. Bases on your OS distribution, it would be usually packages like: `llvm`, `llvm-dev`. For downloading this repository and building it: `git`, `cmake`, `clang`.
 For Ubuntu or Debian based OS use:
@@ -21,7 +21,7 @@ For Ubuntu or Debian based OS use:
 sudo apt install llvm llvm-dev clang cmake git
 ```
 
-## Build##
+## Build
 
 ```
 mkdir build &&
@@ -39,13 +39,13 @@ make
 ```
 Builded compiler outputs intermediate code from which llvm can generate a binary.
 
-## Test samples ##
+## Test samples
 Run from project root. Compiles binary for all example source codes in ``sources/`` directory
 ```
 ./test
 ```
 
-## Compile a program ##
+## Compile a program
 Use supplied script to compile source code into binary.
 ```
 ./mila test.mila -o test
@@ -63,13 +63,13 @@ llc "$OutputFileBaseName.ir" -o "$OutputFileBaseName.s" &&
 clang "$OutputFileBaseName.s" "${DIR}/fce.c" -o "$OutputFileName"
 ```
 
-## Compiler requirements ##
+## Compiler requirements
 Compiler processes source code supplied on the stdin and produces LLVM ir on its stdout.
 All errors should be written to the stderr, non zero return code should be return in case of error.
 No arguments are required, but the mila wrapper is prepared for -v/--verbose, -d/--debug options which can be passed to the compiler.
 Other arguments can be also added for various purposes.
 
-## Template status ##
+## Template status
 Regardless of the source code supplied, all produced binaries gives "Answer to the Ultimate Question of Life, the Universe, and Everything":
 ```
 42
@@ -77,8 +77,8 @@ Regardless of the source code supplied, all produced binaries gives "Answer to t
 
 Generated intermediate code looks like this:
 ```
-; ModuleID = 'sfe'
-source_filename = "sfe"
+; ModuleID = 'mila'
+source_filename = "mila"
 
 declare i32 @writeln(i32)
 

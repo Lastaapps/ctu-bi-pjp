@@ -53,9 +53,48 @@ Sufficient workaround should be ``touch /usr/lib/llvm-9/bin/yaml-bench``
 
 WSL containts only version 6 by default, you need to download newer version from: https://apt.llvm.org/
 
-### Mac
+### Mac OS
 
-Some standard utilities may be required like `getopts`, `realpath`.
+Some standard utilities may be required: `getopts` and `realpath`.
+
+#### Detailed guide
+
+Via brew:
+```sh
+brew install git
+brew install cmake
+brew install llvm
+brew install gnu-getopt
+```
+
+Then you will need to update *rc file of your terminal (.bashrc, .zshrc, ...) with following lines:
+
+```sh
+# Verify that the version of LLVM is correct!
+export LLVM_DIR="/usr/local/Cellar/llvm/10.0.0_1/lib/cmake"
+export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"
+export PATH="/usr/local/Cellar/llvm/10.0.0_1/bin:$PATH"
+```
+
+
+If you dont have utility called __realpath__ you will also need to create it, because it is not in brew:
+
+```sh
+sudo echo '#!/bin/sh                                                                              
+realpath() {
+  OURPWD=$PWD
+  cd "$(dirname "$1")"
+  LINK=$(readlink "$(basename "$1")")
+  while [ "$LINK" ]; do
+    cd "$(dirname "$LINK")"
+    LINK=$(readlink "$(basename "$1")")
+  done
+  REALPATH="$PWD/$(basename "$1")"
+  cd "$OURPWD"
+  echo "$REALPATH"
+}' > /usr/local/bin/realpath
+sudo chmod +x /usr/local/bin/realpath
+```
 
 ## Test samples
 Run from project root. Compiles binary for all example source codes in ``sources/`` directory

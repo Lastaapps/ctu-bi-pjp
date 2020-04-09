@@ -49,10 +49,6 @@ Builded compiler outputs intermediate code from which llvm can generate a binary
 **NOTE:** If you by any change encounter **yaml-bench** error with llvm-9, follow this guide: https://weliveindetail.github.io/blog/post/2019/12/02/apt-llvm-9-dev-yaml-bench.html .
 Sufficient workaround should be ``touch /usr/lib/llvm-9/bin/yaml-bench``
 
-### Windows - WSL
-
-WSL containts only version 6 by default, you need to download newer version from: https://apt.llvm.org/
-
 ### Mac OS
 
 Some standard utilities may be required: `getopts` and `realpath`.
@@ -95,6 +91,55 @@ realpath() {
 }' > /usr/local/bin/realpath
 sudo chmod +x /usr/local/bin/realpath
 ```
+
+### Windows - WSL 2 guide
+
+WSL containts only version 6 by default, you need to download newer version from: https://apt.llvm.org/
+
+Start with basic dependencies:
+```
+sudo apt install clang cmake git llvm-10 llvm-10-dev
+```
+
+With that everything should be ready for compilation.
+
+#### Known issues
+
+If you get issue during linking:
+
+```
+[ 25%] Linking CXX executable mila
+/usr/bin/ld: cannot find -lz
+clang: error: linker command failed with exit code 1 (use -v to see invocation)
+```
+
+You can solve it by installing __zlib1-dev__:
+
+```
+sh
+sudo apt-get install zlib1g-dev
+```
+
+## Build
+
+```
+mkdir build &&
+cd build &&
+cmake ..
+make
+```
+**NOTE:** If you by any change encounter **yaml-bench** error with llvm-9, follow this guide: https://weliveindetail.github.io/blog/post/2019/12/02/apt-llvm-9-dev-yaml-bench.html .
+Sufficient workaround should be ``touch /usr/lib/llvm-9/bin/yaml-bench``
+
+**To rebuild:**
+```
+cd build &&
+make
+```
+Builded compiler outputs intermediate code from which llvm can generate a binary.
+
+>>>>>>> WSL2 dependencies
+
 
 ## Test samples
 Run from project root. Compiles binary for all example source codes in ``sources/`` directory

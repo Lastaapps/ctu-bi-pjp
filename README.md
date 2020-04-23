@@ -41,9 +41,10 @@ make
 ```
 Builded compiler outputs intermediate code from which llvm can generate a binary.
 
-## OS Speficic problems:
+## OS speficic problems:
 
 ### Linux
+
 **NOTE:** If you by any change encounter **yaml-bench** error with llvm-9, follow this guide: https://weliveindetail.github.io/blog/post/2019/12/02/apt-llvm-9-dev-yaml-bench.html .
 Sufficient workaround should be ``touch /usr/lib/llvm-9/bin/yaml-bench``
 

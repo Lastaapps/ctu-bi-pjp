@@ -15,11 +15,15 @@ LLVM supplies a set of tutorials which is available here: https://llvm.org/docs/
 
 ## Dependencies
 
-LLVM including headers. Bases on your OS distribution, it would be usually packages like: `llvm`, `llvm-dev`. For downloading this repository and building it: `git`, `cmake`, `clang`.
+LLVM including headers. Bases on your OS distribution, it would be usually packages like: `llvm`, `llvm-dev`. For downloading this repository and building it: `git`, `cmake`, `clang` a `zlib1g-dev`.
 For Ubuntu or Debian based OS use:
 ```
-sudo apt install llvm llvm-dev clang cmake git
+sudo apt install llvm llvm-dev clang git cmake zlib1g-dev
 ```
+
+### LLVM version
+
+Recommended version is version 9 or 10 (currently latest). Older version may require changes. 
 
 ## Build
 
@@ -29,8 +33,6 @@ cd build &&
 cmake ..
 make
 ```
-**NOTE:** If you by any change encounter **yaml-bench** error with llvm-9, follow this guide: https://weliveindetail.github.io/blog/post/2019/12/02/apt-llvm-9-dev-yaml-bench.html .
-Sufficient workaround should be ``touch /usr/lib/llvm-9/bin/yaml-bench``
 
 **To rebuild:**
 ```
@@ -38,6 +40,20 @@ cd build &&
 make
 ```
 Builded compiler outputs intermediate code from which llvm can generate a binary.
+
+## OS Speficic problems:
+
+### Linux
+**NOTE:** If you by any change encounter **yaml-bench** error with llvm-9, follow this guide: https://weliveindetail.github.io/blog/post/2019/12/02/apt-llvm-9-dev-yaml-bench.html .
+Sufficient workaround should be ``touch /usr/lib/llvm-9/bin/yaml-bench``
+
+### Windows - WSL
+
+WSL containts only version 6 by default, you need to download newer version from: https://apt.llvm.org/
+
+### Mac
+
+Some standard utilities may be required like `getopts`, `realpah`.
 
 ## Test samples
 Run from project root. Compiles binary for all example source codes in ``sources/`` directory

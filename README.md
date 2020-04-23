@@ -46,7 +46,9 @@ Builded compiler outputs intermediate code from which llvm can generate a binary
 
 ### Linux
 
-**NOTE:** If you by any change encounter **yaml-bench** error with llvm-9, follow this guide: https://weliveindetail.github.io/blog/post/2019/12/02/apt-llvm-9-dev-yaml-bench.html .
+#### Known issues
+
+If you by any change encounter **yaml-bench** error with llvm-9, follow this guide: https://weliveindetail.github.io/blog/post/2019/12/02/apt-llvm-9-dev-yaml-bench.html .
 Sufficient workaround should be ``touch /usr/lib/llvm-9/bin/yaml-bench``
 
 ### Mac OS
@@ -137,9 +139,6 @@ cd build &&
 make
 ```
 Builded compiler outputs intermediate code from which llvm can generate a binary.
-
->>>>>>> WSL2 dependencies
-
 
 ## Test samples
 Run from project root. Compiles binary for all example source codes in ``sources/`` directory

@@ -54,7 +54,7 @@ WSL containts only version 6 by default, you need to download newer version from
 
 ### Mac
 
-Some standard utilities may be required like `getopts`, `realpah`.
+Some standard utilities may be required like `getopts`, `realpath`.
 
 ## Test samples
 Run from project root. Compiles binary for all example source codes in ``sources/`` directory

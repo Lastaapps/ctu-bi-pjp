@@ -15,7 +15,8 @@ LLVM supplies a set of tutorials which is available here: https://llvm.org/docs/
 
 ## Dependencies
 
-LLVM including headers. Bases on your OS distribution, it would be usually packages like: `llvm`, `llvm-dev`. For downloading this repository and building it: `git`, `cmake`, `clang` a `zlib1g-dev`.
+LLVM including headers. Bases on your OS distribution, it would be usually packages like:
+`llvm`, `llvm-dev`. For downloading this repository and building it: `git`, `cmake`, `clang` and `zlib1g-dev`.
 For Ubuntu or Debian based OS use:
 ```
 sudo apt install llvm llvm-dev clang git cmake zlib1g-dev

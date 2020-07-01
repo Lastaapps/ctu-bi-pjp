@@ -154,11 +154,11 @@ Use supplied script to compile source code into binary.
 
 **How does mila wrapper script works?**
 
-It runs `build/sfe` on the source code, then `llc` and `clang` (with the fce.c file added):
+It runs `build/mila` on the source code, then `llc` and `clang` (with the fce.c file added):
 
 ```
 rm -f "$OutputFileBaseName.ir"
-> "$OutputFileBaseName.ir" < "$InputFileName" ${DIR}/build/sfe &&
+> "$OutputFileBaseName.ir" < "$InputFileName" ${DIR}/build/mila &&
 rm -f "$OutputFileBaseName.s"
 llc "$OutputFileBaseName.ir" -o "$OutputFileBaseName.s" &&
 clang "$OutputFileBaseName.s" "${DIR}/fce.c" -o "$OutputFileName"

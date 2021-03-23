@@ -12,6 +12,7 @@
 ## Literature
 
 LLVM supplies a set of tutorials which is available here: https://llvm.org/docs/tutorial/
+
 A nice explanation of LLVM IR can be found here: https://mukulrathi.co.uk/create-your-own-programming-language/llvm-ir-cpp-api-tutorial/
 
 ## Dependencies

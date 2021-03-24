@@ -191,3 +191,14 @@ entry:
   ret i32 0
 }
 ```
+
+## Adding your own files
+
+You want to add `Tree.hpp` and `Tree.cpp`, change `CMakeLists.txt` by adding into `add_executable`:
+```
+add_executable(mila main.cpp Lexer.hpp Lexer.cpp Parser.hpp Parser.cpp)
+```
+Reuslt :
+```
+add_executable(mila main.cpp Lexer.hpp Lexer.cpp Parser.hpp Parser.cpp Tree.hpp Tree.cpp)
+```

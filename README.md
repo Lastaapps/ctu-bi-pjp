@@ -96,9 +96,9 @@ realpath() {
 sudo chmod +x /usr/local/bin/realpath
 ```
 
-Or:
+Or this on new MacOS:
 
-```
+```sh
 sudo echo '#!/bin/sh    
 OURPWD="$PWD"
 cd "$(dirname "$1")"

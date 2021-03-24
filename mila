@@ -72,7 +72,7 @@ OutputFileName=$(realpath "$outFile");
 OutputFileBaseName="${OutputFileName%%.*}"
 
 rm -f "$OutputFileBaseName.ir"
-echo "DEBUG" "$OutputFileBaseName.ir" < "$InputFileName" "${DIR}/build/mila"
+echo "DEBUG" "$OutputFileBaseName.ir" "$InputFileName" "${DIR}/build/mila"
 > "$OutputFileBaseName.ir" < "$InputFileName" "${DIR}/build/mila" &&
 rm -f "$OutputFileBaseName.s"
 llc "$OutputFileBaseName.ir" -o "$OutputFileBaseName.s" &&

@@ -192,7 +192,7 @@ entry:
 }
 ```
 
-## Adding your own files
+## Adding your own files example
 
 You want to add `Tree.hpp` and `Tree.cpp`, change `CMakeLists.txt` by adding into `add_executable`:
 ```
@@ -201,4 +201,21 @@ add_executable(mila main.cpp Lexer.hpp Lexer.cpp Parser.hpp Parser.cpp)
 Result:
 ```
 add_executable(mila main.cpp Lexer.hpp Lexer.cpp Parser.hpp Parser.cpp Tree.hpp Tree.cpp)
+```
+
+## Processing input example
+You want to print number from the source file, change `Lexan.hpp`:
+
+```
+int Lexer::gettok() {
+    m_NumVal = 42;
+    return tok_number;
+}
+```
+Result:
+```
+int Lexer::gettok() {
+    std::cin >> m_NumVal;
+    return tok_number;
+}
 ```

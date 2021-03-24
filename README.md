@@ -96,6 +96,25 @@ realpath() {
 sudo chmod +x /usr/local/bin/realpath
 ```
 
+Or:
+
+```
+sudo echo '#!/bin/sh    
+OURPWD="$PWD"
+cd "$(dirname "$1")"
+LINK=$(readlink "$(basename "$1")")
+while [ "$LINK" ]; do
+cd "$(dirname "$LINK")"
+LINK=$(readlink "$(basename "$1")")
+done
+REALPATH="$PWD/$(basename "$1")"
+cd "$OURPWD"
+echo "$REALPATH"
+' > /usr/local/bin/realpath
+sudo chmod +x /usr/local/bin/realpath
+```
+
+
 ### Windows - WSL 2 guide
 
 WSL containts only version 6 by default, you need to download newer version from: https://apt.llvm.org/

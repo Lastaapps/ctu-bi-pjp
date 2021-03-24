@@ -198,7 +198,7 @@ You want to add `Tree.hpp` and `Tree.cpp`, change `CMakeLists.txt` by adding int
 ```
 add_executable(mila main.cpp Lexer.hpp Lexer.cpp Parser.hpp Parser.cpp)
 ```
-Reuslt :
+Result:
 ```
 add_executable(mila main.cpp Lexer.hpp Lexer.cpp Parser.hpp Parser.cpp Tree.hpp Tree.cpp)
 ```

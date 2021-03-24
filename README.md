@@ -82,7 +82,7 @@ If you dont have utility called __realpath__ you will also need to create it, be
 ```sh
 sudo echo '#!/bin/sh                                                                              
 realpath() {
-  OURPWD=$PWD
+  OURPWD="$PWD"
   cd "$(dirname "$1")"
   LINK=$(readlink "$(basename "$1")")
   while [ "$LINK" ]; do

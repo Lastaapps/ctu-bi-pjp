@@ -45,6 +45,10 @@ If you need to change version of LLVM library used modify `CMakeLists.txt` based
 # find_package(LLVM "${MAJOR}.${MINOR}" REQUIRED CONFIG)
 find_package(LLVM REQUIRED CONFIG)
 ```
+For example to force LLVM 10:
+```
+find_package(LLVM 10 REQUIRED CONFIG)
+```
 If you need to change version or command of a compiler used modif `CMakeLists.txt` based on your needs:
 ```
 set(CMAKE_C_COMPILER clang)
@@ -167,6 +171,8 @@ set(CMAKE_CXX_COMPILER clang++-11)
 set(CMAKE_C_COMPILER clang-12)
 set(CMAKE_CXX_COMPILER clang++-12)
 ```
+
+Or you make appropriate symlinks for `clang` and `clang++`.
 
 With that everything should be ready for compilation.
 

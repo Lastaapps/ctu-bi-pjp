@@ -40,6 +40,13 @@ Thread model: posix
 InstalledDir: /usr/bin
 ```
 
+If you need to change version of LLVM used modify `CMakeLists.txt` based on your needs:
+```
+# Change this to force specific version of LLVM
+# find_package(LLVM "${MAJOR}.${MINOR}" REQUIRED CONFIG)
+find_package(LLVM REQUIRED CONFIG)
+```
+
 ## Build
 
 ```

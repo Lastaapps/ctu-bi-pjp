@@ -26,7 +26,7 @@ sudo apt install llvm llvm-dev clang git cmake zlib1g-dev
 
 ### LLVM version
 
-Recommended version is version 9, 10, 11 or 12 (currently latest). Older version may require changes.
+Recommended version is version (9,) 10, 11 or 12 (currently latest). Older version may require changes.
 
 To get the current LLVM version, just call:
 ```

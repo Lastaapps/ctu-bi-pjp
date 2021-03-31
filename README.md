@@ -49,11 +49,6 @@ For example to force LLVM 10:
 ```
 find_package(LLVM 10 REQUIRED CONFIG)
 ```
-If you need to change version or command of a compiler used modif `CMakeLists.txt` based on your needs:
-```
-set(CMAKE_C_COMPILER clang)
-set(CMAKE_CXX_COMPILER clang++)
-```
 
 ## Build
 
@@ -156,23 +151,23 @@ sudo apt install clang cmake git llvm-11 llvm-11-dev
 ```
 sudo apt install clang cmake git llvm-12 llvm-12-dev
 ```
-
-You may need to change a compiler used in `CMakeLists.txt` as well:
-
+You may be messing default `clang`, `clang++` and `llc` and have version specific binaries only. The best way to slove this is to make appropriate symlinks based on your version:
+```
+LLVM_VERSION=10
+sudo ln -s $(which clang-$LLVM_VERSION) /usr/bin/clang
+sudo ln -s $(which clang++-$LLVM_VERSION) /usr/bin/clang++
+sudo ln -s $(which llc-$LLVM_VERSION) /usr/bin/llc
+```
+Alternative is to change a compiler used in `CMakeLists.txt` as well:
 ```
 set(CMAKE_C_COMPILER clang-10)
 set(CMAKE_CXX_COMPILER clang++-10)
 ```
+And `mila` script:
 ```
-set(CMAKE_C_COMPILER clang-11)
-set(CMAKE_CXX_COMPILER clang++-11)
+llc-10 "$OutputFileBaseName.ir" -o "$OutputFileBaseName.s" &&
+clang-10 "$OutputFileBaseName.s" "${DIR}/fce.c" -o "$OutputFileName"
 ```
-```
-set(CMAKE_C_COMPILER clang-12)
-set(CMAKE_CXX_COMPILER clang++-12)
-```
-
-Or you make appropriate symlinks for `clang` and `clang++`.
 
 With that everything should be ready for compilation.
 

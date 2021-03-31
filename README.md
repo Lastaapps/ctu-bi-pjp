@@ -151,7 +151,7 @@ sudo apt install clang cmake git llvm-11 llvm-11-dev
 ```
 sudo apt install clang cmake git llvm-12 llvm-12-dev
 ```
-You may be messing default `clang`, `clang++` and `llc` and have version specific binaries only. The best way to slove this is to make appropriate symlinks based on your version:
+You may be missing default `clang`, `clang++` and `llc` and have version specific binaries only. The best way to solve this is to make appropriate symlinks based on your version:
 ```
 LLVM_VERSION=10
 sudo ln -s $(which clang-$LLVM_VERSION) /usr/bin/clang

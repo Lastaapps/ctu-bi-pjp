@@ -39,12 +39,16 @@ Target: x86_64-pc-linux-gnu
 Thread model: posix
 InstalledDir: /usr/bin
 ```
-
-If you need to change version of LLVM used modify `CMakeLists.txt` based on your needs:
+If you need to change version of LLVM library used modify `CMakeLists.txt` based on your needs:
 ```
 # Change this to force specific version of LLVM
 # find_package(LLVM "${MAJOR}.${MINOR}" REQUIRED CONFIG)
 find_package(LLVM REQUIRED CONFIG)
+```
+If you need to change version or command of a compiler used modif `CMakeLists.txt` based on your needs:
+```
+set(CMAKE_C_COMPILER clang)
+set(CMAKE_CXX_COMPILER clang++)
 ```
 
 ## Build
@@ -147,6 +151,21 @@ sudo apt install clang cmake git llvm-11 llvm-11-dev
 ```
 ```
 sudo apt install clang cmake git llvm-12 llvm-12-dev
+```
+
+You may need to change a compiler used in `CMakeLists.txt` as well:
+
+```
+set(CMAKE_C_COMPILER clang-10)
+set(CMAKE_CXX_COMPILER clang++-10)
+```
+```
+set(CMAKE_C_COMPILER clang-11)
+set(CMAKE_CXX_COMPILER clang++-11)
+```
+```
+set(CMAKE_C_COMPILER clang-12)
+set(CMAKE_CXX_COMPILER clang++-12)
 ```
 
 With that everything should be ready for compilation.

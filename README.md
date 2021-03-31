@@ -26,7 +26,19 @@ sudo apt install llvm llvm-dev clang git cmake zlib1g-dev
 
 ### LLVM version
 
-Recommended version is version 9, 10, 11 or 12 (currently latest). Older version may require changes. 
+Recommended version is version 9, 10, 11 or 12 (currently latest). Older version may require changes.
+
+To get the current LLVM version, just call:
+```
+clang --version
+```
+You should get an output similar to this:
+```
+Ubuntu clang version 12.0.0-++rc3-4ubuntu1
+Target: x86_64-pc-linux-gnu
+Thread model: posix
+InstalledDir: /usr/bin
+```
 
 ## Build
 
@@ -42,7 +54,7 @@ make
 cd build &&
 make
 ```
-Builded compiler outputs intermediate code from which llvm can generate a binary.
+Builded compiler outputs intermediate code from which LLVM can generate a binary.
 
 ## OS speficic problems:
 
@@ -119,7 +131,7 @@ sudo chmod +x /usr/local/bin/realpath
 
 WSL containts only version 6 by default, you need to download newer version from: https://apt.llvm.org/
 
-Start with basic dependencies for llvm 10, 11 or 12:
+Start with basic dependencies for LLVM 10, 11 or 12:
 ```
 sudo apt install clang cmake git llvm-10 llvm-10-dev
 ```

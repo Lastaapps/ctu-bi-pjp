@@ -1,5 +1,8 @@
 # Semestral Work
 
+
+# Semestral work structure
+
 - CMakeLists.txt - CMake source file
 - main.hpp - main function definition
 - Lexan.hpp, Lexan.cpp - Lexan related sources
@@ -18,7 +21,10 @@ A nice explanation of LLVM IR can be found here: https://mukulrathi.co.uk/create
 ## Dependencies
 
 LLVM including headers. Bases on your OS distribution, it would be usually packages like:
-`llvm`, `llvm-dev`. For downloading this repository and building it: `git`, `cmake`, `clang` and `zlib1g-dev`.
+`llvm`, `llvm-dev`.
+
+For downloading this repository and building it: `git`, `cmake`, `clang` and `zlib1g-dev`.
+
 For Ubuntu or Debian based OS use:
 ```
 sudo apt install llvm llvm-dev clang git cmake zlib1g-dev
@@ -50,7 +56,7 @@ For example to force LLVM 10:
 find_package(LLVM 10 REQUIRED CONFIG)
 ```
 
-## Build
+## Building
 
 ```
 mkdir build &&
@@ -76,6 +82,8 @@ If you by any change encounter **yaml-bench** error with llvm-9, follow this gui
 Sufficient workaround should be ``touch /usr/lib/llvm-9/bin/yaml-bench``
 
 ### Mac OS
+
+#### Known issues
 
 Some standard utilities may be required: `getopts` and `realpath`.
 
@@ -136,7 +144,6 @@ echo "$REALPATH"
 sudo chmod +x /usr/local/bin/realpath
 ```
 
-
 ### Windows - WSL 2 guide
 
 WSL containts only version 6 by default, you need to download newer version from: https://apt.llvm.org/
@@ -188,7 +195,7 @@ sh
 sudo apt-get install zlib1g-dev
 ```
 
-## Build
+## Building
 
 ```
 mkdir build &&
@@ -206,13 +213,20 @@ make
 ```
 Builded compiler outputs intermediate code from which llvm can generate a binary.
 
-## Test samples
+## Running
+```
+./mila
+```
+
+Details below.
+
+## Testing samples
 Run from project root. Compiles binary for all example source codes in ``sources/`` directory
 ```
 ./test
 ```
 
-## Compile a program
+## Compiling a program
 Use supplied script to compile source code into binary.
 ```
 ./mila test.mila -o test
@@ -230,13 +244,13 @@ llc "$OutputFileBaseName.ir" -o "$OutputFileBaseName.s" &&
 clang "$OutputFileBaseName.s" "${DIR}/fce.c" -o "$OutputFileName"
 ```
 
-## Compiler requirements
+## How should your semestral work behave?
 Compiler processes source code supplied on the stdin and produces LLVM ir on its stdout.
 All errors should be written to the stderr, non zero return code should be return in case of error.
 No arguments are required, but the mila wrapper is prepared for -v/--verbose, -d/--debug options which can be passed to the compiler.
 Other arguments can be also added for various purposes.
 
-## Template status
+## What template of semestral work does?
 Regardless of the source code supplied, all produced binaries gives "Answer to the Ultimate Question of Life, the Universe, and Everything":
 ```
 42
@@ -256,7 +270,7 @@ entry:
 }
 ```
 
-## Adding your own files example
+## How to add your own files?
 
 You want to add `Tree.hpp` and `Tree.cpp`, change `CMakeLists.txt` by adding into `add_executable`:
 ```
@@ -267,7 +281,8 @@ Result:
 add_executable(mila main.cpp Lexer.hpp Lexer.cpp Parser.hpp Parser.cpp Tree.hpp Tree.cpp)
 ```
 
-## Processing input example
+## How to process input source code?
+
 You want to print number from the source file, change `Lexan.hpp`:
 
 ```

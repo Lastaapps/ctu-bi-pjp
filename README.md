@@ -10,7 +10,7 @@
 - fce.c - grue for write, writeln, read function, it is compliled together with the program
 - samples - directory with samples desribing syntax
 - mila - wrapper script for your compiler
-- test - test script with comiples all samples
+- test - test script with compiles all samples
 
 ## Literature
 

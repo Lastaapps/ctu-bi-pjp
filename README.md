@@ -30,7 +30,7 @@ For Ubuntu or Debian based OS use:
 sudo apt install llvm llvm-dev clang git cmake zlib1g-dev
 ```
 
-For OpenSuse it will be most likely called `llvm-devel`.
+For OpenSuse it will be most likely called `llvm-devel` and `libLLVM`, search for `*llvm*` and `*LLVM*`.
 
 ### LLVM version
 

@@ -30,6 +30,8 @@ For Ubuntu or Debian based OS use:
 sudo apt install llvm llvm-dev clang git cmake zlib1g-dev
 ```
 
+For OpenSuse it will be most likely called `llvm-devel`.
+
 ### LLVM version
 
 Recommended version is version (9,) 10, 11 or 12 (currently latest). Older version may require changes.

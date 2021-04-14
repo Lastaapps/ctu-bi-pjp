@@ -150,6 +150,10 @@ sudo chmod +x /usr/local/bin/realpath
 
 WSL containts only version 6 by default, you need to download newer version from: https://apt.llvm.org/
 
+And create file `/etc/apt/sources.list.d/llvm.list` with appropriate repositories.
+
+If you need to check your system version, use: `lsb_release -a`.
+
 Start with basic dependencies for LLVM 10, 11 or 12:
 ```
 sudo apt install clang cmake git llvm-10 llvm-10-dev

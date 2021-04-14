@@ -163,9 +163,9 @@ sudo apt install clang cmake git llvm-12 llvm-12-dev
 You may be missing default `clang`, `clang++` and `llc` and have version specific binaries only. The best way to solve this is to make appropriate symlinks based on your version:
 ```
 LLVM_VERSION=10
-sudo ln -s $(which clang-$LLVM_VERSION) /usr/bin/clang
-sudo ln -s $(which clang++-$LLVM_VERSION) /usr/bin/clang++
-sudo ln -s $(which llc-$LLVM_VERSION) /usr/bin/llc
+sudo ln -sf $(which clang-$LLVM_VERSION) /usr/bin/clang
+sudo ln -sf $(which clang++-$LLVM_VERSION) /usr/bin/clang++
+sudo ln -sf $(which llc-$LLVM_VERSION) /usr/bin/llc
 ```
 Alternative is to change a compiler used in `CMakeLists.txt` as well:
 ```
@@ -193,7 +193,6 @@ clang: error: linker command failed with exit code 1 (use -v to see invocation)
 You can solve it by installing __zlib1-dev__:
 
 ```
-sh
 sudo apt-get install zlib1g-dev
 ```
 

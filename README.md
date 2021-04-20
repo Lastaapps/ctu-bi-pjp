@@ -171,7 +171,7 @@ sudo ln -sf $(which clang-$LLVM_VERSION) /usr/bin/clang
 sudo ln -sf $(which clang++-$LLVM_VERSION) /usr/bin/clang++
 sudo ln -sf $(which llc-$LLVM_VERSION) /usr/bin/llc
 ```
-Alternative is to change a compiler used in `CMakeLists.txt` as well:
+Alternative is to change a compiler used in `CMakeLists.txt`:
 ```
 set(CMAKE_C_COMPILER clang-10)
 set(CMAKE_CXX_COMPILER clang++-10)

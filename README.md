@@ -219,6 +219,8 @@ make
 Builded compiler outputs intermediate code from which llvm can generate a binary.
 
 ## Running
+Do not call binary `mila` inside `build` directory directly, use wrapper script `mila` inside a root directory:
+
 ```
 ./mila
 ```
@@ -233,8 +235,16 @@ Run from project root. Compiles binary for all example source codes in ``sources
 
 ## Compiling a program
 Use supplied script to compile source code into binary.
+
+
+First you need to create a source file, otherwise compilation will fail:
 ```
-./mila test.mila -o test
+touch test.mila
+```
+
+Then you can compile it with compiler.
+```
+./mila test.mila -o test.out
 ```
 
 **How does mila wrapper script works?**

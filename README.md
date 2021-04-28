@@ -10,7 +10,7 @@
 - fce.c - grue for write, writeln, read function, it is compliled together with the program
 - samples - directory with samples desribing syntax
 - mila - wrapper script for your compiler
-- test - test script with compiles all samples
+- runtests - test script with compiles all samples
 
 ## Literature
 
@@ -230,7 +230,7 @@ Details below.
 ## Testing samples
 Run from project root. Compiles binary for all example source codes in ``sources/`` directory
 ```
-./test
+./runtests
 ```
 
 ## Compiling a program

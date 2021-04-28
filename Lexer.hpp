@@ -64,7 +64,10 @@ enum Token {
 
     // keywords in for loop
     tok_to =            -30,
-    tok_downto =        -31
+    tok_downto =        -31,
+    
+    // keywords for array
+    tok_array =         -32
 };
 
 #endif //PJPPROJECT_LEXER_HPP

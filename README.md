@@ -67,12 +67,15 @@ cmake ..
 make
 ```
 
+**NOTE:** If you by any change encounter **yaml-bench** error with llvm-9, follow this guide: https://weliveindetail.github.io/blog/post/2019/12/02/apt-llvm-9-dev-yaml-bench.html .
+Sufficient workaround should be ``touch /usr/lib/llvm-9/bin/yaml-bench``
+
 **To rebuild:**
 ```
 cd build &&
 make
 ```
-Builded compiler outputs intermediate code from which LLVM can generate a binary.
+Builded compiler outputs intermediate code from which llvm can generate a binary.
 
 ## OS speficic problems:
 
@@ -199,24 +202,6 @@ You can solve it by installing __zlib1-dev__:
 ```
 sudo apt-get install zlib1g-dev
 ```
-
-## Building
-
-```
-mkdir build &&
-cd build &&
-cmake ..
-make
-```
-**NOTE:** If you by any change encounter **yaml-bench** error with llvm-9, follow this guide: https://weliveindetail.github.io/blog/post/2019/12/02/apt-llvm-9-dev-yaml-bench.html .
-Sufficient workaround should be ``touch /usr/lib/llvm-9/bin/yaml-bench``
-
-**To rebuild:**
-```
-cd build &&
-make
-```
-Builded compiler outputs intermediate code from which llvm can generate a binary.
 
 ## Running
 Do not call binary `mila` inside `build` directory directly, use wrapper script `mila` inside a root directory:

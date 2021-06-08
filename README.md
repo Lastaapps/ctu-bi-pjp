@@ -1,5 +1,7 @@
 # Semestral Work
 
+This is the repository that serves as a simple template for semestral work.
+
 
 # Semestral work structure
 
@@ -15,6 +17,8 @@
 ## Literature
 
 LLVM supplies a set of tutorials which is available here: https://llvm.org/docs/tutorial/
+
+These tutorials are highly recommended and contains everything from lexical analysis up to transforming AST into LLVM IR.
 
 A nice explanation of LLVM IR can be found here: https://mukulrathi.co.uk/create-your-own-programming-language/llvm-ir-cpp-api-tutorial/
 
@@ -77,7 +81,7 @@ make
 ```
 Builded compiler outputs intermediate code from which llvm can generate a binary.
 
-## OS speficic problems:
+## OS speficic problems with building:
 
 ### Linux
 
@@ -270,6 +274,12 @@ entry:
 }
 ```
 
+You can try this example without mila wrapper as well:
+
+```
+echo 42 | ./build/mila
+```
+
 ## How to add your own files?
 
 You want to add `Tree.hpp` and `Tree.cpp`, change `CMakeLists.txt` by adding into `add_executable`:
@@ -298,3 +308,5 @@ int Lexer::gettok() {
     return tok_number;
 }
 ```
+
+For processing input `getc` (`ungetc`) is recommended. But `scanf` or `std::cin` should work as well.

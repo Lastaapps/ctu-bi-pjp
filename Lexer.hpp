@@ -18,11 +18,9 @@ private:
 
 
 /*
- * Lexer returns tokens [0-255] if it is an unknown character, 
- * otherwise one of these for known things.
+ * Lexer returns tokens [0-255] if it is an unknown character, otherwise one of these for known things.
  * Here are all valid tokens:
  */
-
 enum Token {
     tok_eof =           -1,
 
@@ -65,7 +63,7 @@ enum Token {
     // keywords in for loop
     tok_to =            -30,
     tok_downto =        -31,
-    
+
     // keywords for array
     tok_array =         -32
 };

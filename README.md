@@ -5,14 +5,14 @@ This is the repository that serves as a simple template for semestral work.
 
 # Semestral work structure
 
-- CMakeLists.txt - CMake source file
-- main.hpp - main function definition
-- Lexan.hpp, Lexan.cpp - Lexan related sources
-- Parser.hpp, Parser.cpp - Parser related sources
-- fce.c - grue for write, writeln, read function, it is compliled together with the program
-- samples - directory with samples desribing syntax
-- mila - wrapper script for your compiler
-- runtests - test script with compiles all samples
+- `CMakeLists.txt` - CMake source file
+- `main.hpp` - main function definition
+- `Lexan.hpp`, `Lexan.cpp` - Lexan related sources
+- `Parser.hpp`, `Parser.cpp` - Parser related sources
+- `fce.c`  - grue for `write`, `writeln`, `read` function, it is compiled together with the program
+- `samples` - directory with samples describing syntax
+- `mila` - wrapper script for your compiler
+- `runtests` - test script with compiles all samples
 
 ## Literature
 
@@ -64,22 +64,17 @@ find_package(LLVM 10 REQUIRED CONFIG)
 
 ## Building
 
+We use standard CMake toolchain, i.e. for default compilation in Debug mode, use something like:
+
 ```
-mkdir build &&
-cd build &&
-cmake ..
-make
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Debug
 ```
 
-**NOTE:** If you by any change encounter **yaml-bench** error with llvm-9, follow this guide: https://weliveindetail.github.io/blog/post/2019/12/02/apt-llvm-9-dev-yaml-bench.html .
-Sufficient workaround should be ``touch /usr/lib/llvm-9/bin/yaml-bench``
+and then build with `cmake --build .` or `make`.
 
-**To rebuild:**
-```
-cd build &&
-make
-```
-Builded compiler outputs intermediate code from which llvm can generate a binary.
+Built compiler outputs intermediate code from which llvm can generate a binary.
 
 ## OS speficic problems with building:
 

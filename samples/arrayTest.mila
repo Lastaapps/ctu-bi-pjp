@@ -8,7 +8,7 @@ begin
   end;
 
   readln(NUM);
-  
+
   for I := 0 to NUM - 1 do begin
     readln(TEMP);
     X[TEMP] := X[TEMP] + 1;

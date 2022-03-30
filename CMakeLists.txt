@@ -13,7 +13,7 @@ find_package(LLVM REQUIRED CONFIG)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
-add_executable(mila main.cpp Lexer.hpp Lexer.cpp Parser.hpp Parser.cpp)
+add_executable(mila src/main.cpp src/Lexer.hpp src/Lexer.cpp src/Parser.hpp src/Parser.cpp)
 
 target_include_directories(mila PRIVATE ${LLVM_INCLUDE_DIRS})
 

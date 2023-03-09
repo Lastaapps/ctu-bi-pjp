@@ -1,7 +1,7 @@
 program isprime;
 
 function isprime(n: integer): integer;
-var max, i: integer;
+var i: integer;
 begin
     if n < 2 then
     begin
@@ -20,24 +20,15 @@ begin
     end;
 
     isprime := 1;
-    max := n;
     i := 5;
-    while i < max do
+    while i < n do
     begin
-        if( i < max ) then exit;
         if ((n mod i) = 0) then
         begin
             isprime := 0;
             exit;
         end;
         i := i + 2;
-        if ( i < max ) then exit;
-        if ((n mod i) = 0) then
-        begin
-            isprime := 0;
-            exit;
-        end;
-        i := i + 4;
     end;
 end;
 
@@ -60,4 +51,8 @@ begin
     writeln(isprime(15));
     writeln(isprime(16));
     writeln(isprime(17));
+    writeln(isprime(17*7));
+    writeln(isprime(17*11));
+    writeln(isprime(101));
+    writeln(isprime(103));
 end.

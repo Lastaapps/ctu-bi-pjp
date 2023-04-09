@@ -43,4 +43,16 @@ begin
     writeln(gcdi(27*2, 27*3));
     writeln(gcdr(27*2, 27*3));
     writeln(gcdr_guessing(27*2, 27*3));
+
+    writeln(gcdi(5, 7));
+    writeln(gcdr(5, 7));
+    writeln(gcdr_guessing(5, 7));
+
+    writeln(gcdi(4, 12));
+    writeln(gcdr(4, 12));
+    writeln(gcdr_guessing(4, 12));
+
+    writeln(gcdi(8, 12));
+    writeln(gcdr(8, 12));
+    writeln(gcdr_guessing(8, 12));
 end.

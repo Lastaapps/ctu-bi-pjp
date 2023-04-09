@@ -3,8 +3,6 @@ project(mila)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_C_COMPILER clang)
-set(CMAKE_CXX_COMPILER clang++)
 
 # Change this to force specific version of LLVM
 # find_package(LLVM "${MAJOR}.${MINOR}" REQUIRED CONFIG)

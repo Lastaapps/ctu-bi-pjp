@@ -29,3 +29,16 @@ target_compile_options(mila PRIVATE ${LLVM_DEFINITIONS_LIST})
 # target_link_libraries(mila ${llvm_libs})
 
 llvm_config(mila USE_SHARED support core irreader)
+
+
+include(CTest)
+if (BUILD_TESTING)
+    file(GLOB_RECURSE MILA_SOURCES LIST_DIRECTORIES false CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/samples/*.mila")
+    file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/tests")
+
+    foreach(src ${MILA_SOURCES})
+        get_filename_component(basename ${src} NAME_WE [CACHE])
+        add_test(NAME "compiler:${basename}" COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/mila" "${src}" "-o" "${CMAKE_CURRENT_BINARY_DIR}/tests/${basename}")
+    endforeach()
+endif()
+

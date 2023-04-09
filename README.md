@@ -12,7 +12,8 @@ This is the repository that serves as a simple template for semestral work.
 - `fce.c`  - grue for `write`, `writeln`, `read` function, it is compiled together with the program
 - `samples` - directory with samples describing syntax
 - `mila` - wrapper script for your compiler
-- `runtests` - test script with compiles all samples
+
+Compilation tests (not correct output tests) are implemented using `ctest` and defined in `CMakeLists.txt`.
 
 ## Literature
 
@@ -212,10 +213,8 @@ Do not call binary `mila` inside `build` directory directly, use wrapper script 
 Details below.
 
 ## Testing samples
-Run from project root. Compiles binary for all example source codes in ``sources/`` directory
-```
-./runtests
-```
+From inside the build directory you can utilize `ctest` command.
+The tests are defined as compilation of all example source codes in ``samples/`` directory.
 
 ## Compiling a program
 Use supplied script to compile source code into binary.

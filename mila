@@ -75,5 +75,5 @@ rm -f "$OutputFileBaseName.ir"
 #echo "DEBUG" "$OutputFileBaseName.ir" "$InputFileName" "${DIR}/build/mila"
 > "$OutputFileBaseName.ir" < "$InputFileName" "${DIR}/build/mila" &&
 rm -f "$OutputFileBaseName.s"
-llc "$OutputFileBaseName.ir" -o "$OutputFileBaseName.s" &&
+llc "$OutputFileBaseName.ir" -o "$OutputFileBaseName.s" -relocation-model=pic &&
 clang "$OutputFileBaseName.s" "${DIR}/src/fce.c" -o "$OutputFileName"

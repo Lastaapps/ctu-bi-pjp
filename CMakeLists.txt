@@ -18,9 +18,9 @@ target_include_directories(mila PRIVATE ${LLVM_INCLUDE_DIRS})
 separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
 target_compile_options(mila PRIVATE ${LLVM_DEFINITIONS_LIST})
 
-# Find the libraries that correspond to the LLVM components
-# that we wish to use
-llvm_map_components_to_libnames(llvm_libs support core irreader)
+# Find the libraries that correspond to the LLVM components that we wish to use and link against them
+# https://github.com/llvm/llvm-project/issues/34593
+# llvm_map_components_to_libnames(llvm_libs support core irreader)
+# target_link_libraries(mila ${llvm_libs})
 
-# Link against LLVM libraries
-target_link_libraries(mila ${llvm_libs})
+llvm_config(mila USE_SHARED support core irreader)

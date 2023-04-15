@@ -37,7 +37,7 @@ if (BUILD_TESTING)
     file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/tests")
 
     foreach(src ${MILA_SOURCES})
-        get_filename_component(basename ${src} NAME_WE [CACHE])
+        get_filename_component(basename ${src} NAME_WE)
         add_test(NAME "compiler:${basename}" COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/mila" "${src}" "-o" "${CMAKE_CURRENT_BINARY_DIR}/tests/${basename}")
     endforeach()
 endif()

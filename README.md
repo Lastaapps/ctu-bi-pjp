@@ -13,7 +13,7 @@ This is the repository that serves as a simple template for semestral work.
 - `samples` - directory with samples describing syntax
 - `mila` - wrapper script for your compiler
 
-Compilation tests (not correct output tests) are implemented using `ctest` and defined in `CMakeLists.txt`.
+Compilation tests and correct output tests for sample files are implemented using `ctest` and defined in `CMakeLists.txt`.
 
 ## Literature
 
@@ -214,7 +214,8 @@ Details below.
 
 ## Testing samples
 From inside the build directory you can utilize `ctest` command.
-The tests are defined as compilation of all example source codes in ``samples/`` directory.
+The tests are defined as compilation of all example source codes in ``samples/`` directory and in another tests the created executables are run and their output compared with expected output.
+There is only limited number of such test though, you should definitely create more tests.
 
 ## Compiling a program
 Use supplied script to compile source code into binary.

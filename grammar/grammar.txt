@@ -1,0 +1,171 @@
+# Grammar
+
+## Tokens (Aplhabet)
+
+eof
+
+// numbers and identifiers
+identifier
+number
+
+// keywords
+begin
+end
+const
+procedure
+forward
+function
+if
+then
+else
+program
+while
+exit
+var
+integer
+for
+do
+
+// 2-character operators
+notequal
+lessequal
+ge
+assign
+or
+
+// 3-character operators (keywords)
+mod
+div
+not
+and
+xor
+
+// keywords in for loop
+to
+downto
+
+// keywords for array
+array
+
+// Operators
+:=
+=
+<
+>
+>=
+<=
+<>
+
+
+## Grammar
+PROGRAM            -> name; SCOPE
+SCOPE              -> VAR_DEF SCOPE
+                   -> CONST_DEF SCOPE
+                   -> FUNC SCOPE
+                   -> MAIN
+
+VAR_DEF            -> var VAR_BODY
+VAR_BODY           -> name VAR_NAME
+VAR_NAME           -> , VAR_BODY
+                   -> : TYPE; VAR_BODY*
+VAR_BODY*          -> VAR_BODY
+                   -> 
+
+CONST_DEF          -> const CONST_BODY
+CONST_BODY         -> name = LITERAL; CONST_BODY
+CONST_BODY*        -> CONST_BODY
+                   -> 
+
+LITERAL            -> NUMBER
+                   -> string
+
+TYPE               -> integer
+                   -> float
+                   -> array [ NUMBER .. NUMBER ] of TYPE
+
+NUMBER             -> DEC_NUMBER
+                   -> $HEX_NUMBER
+                   -> &OCT_NUMBER
+                   -> #BIN_NUMBER
+
+FUNC               -> function name(PARAMS?): TYPE;
+FUNC*              -> VAR_DEF BLOCK;
+                   -> forward;
+PARAM              -> name : TYPE
+PARAMS?            -> PARAMS
+                   -> 
+PARAMS             -> PARAM PARAMS*
+PARAMS*            -> ; PARAM
+                   -> 
+
+MAIN               -> BLOCK.
+
+BLOCK              -> begin STMT BLOCK* end
+BLOCK*             -> ; BLOCK**
+                   -> 
+BLOCK**            -> STMT
+                   -> 
+           
+
+STMT               -> EXPR
+                   -> ASSIGN
+                   -> FOR
+                   -> WHILE
+                   -> IF
+                   -> exit
+
+ASSIGN             -> VAR_ACCESS := EXPR
+
+
+FOR                -> ASSIGN FOR_DIR EXPR do BORS
+FOR_DIR            -> to
+FOR_DIR            -> downto
+
+WHILE              -> while EXPR do BORS
+
+IF                 -> if EXPR then BORS ELSE
+ELSE               -> else BORS
+                   -> 
+
+BORS               -> BLOCK
+                   -> STMT
+
+EXPR               -> string
+                   -> VAR_ACCESS
+                  |||
+                  vvv 
+# OP_UN              -> + EXPR
+#                    -> - EXPR
+OP_BIN1            -> OP_BIN2 OP_BIN1*
+OP_BIN1*           -> < OP_BIN2
+                   -> 
+OP_BIN2            -> OP_BIN3 
+OP_BIN2*           -> * OP_BIN2*
+                   -> 
+OP_BIN3            -> OP_BIN4 OP_BIN3*
+OP_BIN3*           -> + OP_BIN3
+                   -> 
+OP_BIN4            -> (EXPR)
+OP_BIN4            -> VALUE
+
+VALUE             -> number
+                  -> VAR_ACCESS
+                  -> FUN_CALL
+
+VAR_ACCESS         -> name LHS*
+VAR_ACCESS*        -> [EXPR] LHS*
+                   -> 
+
+FUN_CALL           -> name ( FUN_ARGS )
+FUN_ARGS           -> name FUN_ARGS*
+FUN_ARGS*          -> , name FUN_ARGS*
+                   -> 
+
+
+## Function list
+dec
+inc
+writeln
+readln
+write
+

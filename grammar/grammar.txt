@@ -86,13 +86,13 @@ TYPE               -> integer
 NUMBER             -> DEC_NUMBER
                    -> $HEX_NUMBER
                    -> &OCT_NUMBER
-                   -> #BIN_NUMBER
+                   -> %BIN_NUMBER
 
-FUNC               -> function name(PARAMS?): TYPE;
+FUNC               -> function name(PARAMS*): TYPE;
 FUNC*              -> VAR_DEF BLOCK;
                    -> forward;
 PARAM              -> name : TYPE
-PARAMS?            -> PARAMS
+PARAMS*            -> PARAMS
                    -> 
 PARAMS             -> PARAM PARAMS*
 PARAMS*            -> ; PARAM
@@ -130,30 +130,33 @@ ELSE               -> else BORS
 BORS               -> BLOCK
                    -> STMT
 
-EXPR               -> string
-                   -> VAR_ACCESS
-                  |||
-                  vvv 
-# OP_UN              -> + EXPR
-#                    -> - EXPR
-OP_BIN1            -> OP_BIN2 OP_BIN1*
-OP_BIN1*           -> < OP_BIN2
+EXPR               -> OP_BIN6
+OP_BIN6            -> OP_BIN5 OP_BIN6*
+OP_BIN6*           -> and OP_BIN6
                    -> 
-OP_BIN2            -> OP_BIN3 
-OP_BIN2*           -> * OP_BIN2*
+OP_BIN5            -> OP_BIN4 OP_BIN5*
+OP_BIN5*           -> < OP_BIN5
                    -> 
-OP_BIN3            -> OP_BIN4 OP_BIN3*
+OP_BIN4            -> OP_BIN3 OP_BIN4*
+OP_BIN4*           -> * OP_BIN4
+                   -> 
+OP_BIN3            -> OP_BIN2 OP_BIN3*
 OP_BIN3*           -> + OP_BIN3
                    -> 
-OP_BIN4            -> (EXPR)
-OP_BIN4            -> VALUE
+OP_BIN2            -> + OP_BIN2
+                   -> - OP_BIN2
+                   -> OP_BIN1
+OP_BIN1            -> ( EXPR )
+OP_BIN1            -> VALUE
 
-VALUE             -> number
-                  -> VAR_ACCESS
-                  -> FUN_CALL
 
-VAR_ACCESS         -> name LHS*
-VAR_ACCESS*        -> [EXPR] LHS*
+VALUE              -> number
+                   -> text
+                   -> VAR_ACCESS
+                   -> FUN_CALL
+
+VAR_ACCESS         -> name VAR_ACCESS*
+VAR_ACCESS*        -> [EXPR] VAR_ACCESS*
                    -> 
 
 FUN_CALL           -> name ( FUN_ARGS )

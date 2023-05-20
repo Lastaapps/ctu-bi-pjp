@@ -1,7 +1,7 @@
 
 use either::Either;
 
-use crate::errors::MilaError;
+use crate::errors::MilaErr;
 
-pub type Outcome<T> = Result<T, MilaError>;
+pub type Outcome<T> = Result<T, MilaErr>;
 

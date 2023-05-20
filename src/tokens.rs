@@ -43,8 +43,8 @@ pub enum OperatorType {
 }
 
 pub struct BracketInfo {
-    is_square: bool,
-    is_left: bool,
+    pub is_square: bool,
+    pub is_open: bool,
 }
 
 pub enum BuiltInType {
@@ -63,11 +63,12 @@ pub enum Token {
     Float(f64),
     Operator(OperatorType),
     Bracket(BracketInfo),
+    EOF,
 }
 
 pub struct TokenInfo {
-    token: Token,
-    line: u32,
-    column: u32,
+    pub token: Token,
+    pub line: u32,
+    pub column: u32,
 }
 

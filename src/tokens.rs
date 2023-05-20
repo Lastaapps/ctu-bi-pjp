@@ -56,10 +56,10 @@ pub enum BuiltInType {
 }
 
 pub enum Token {
-    Name(String),
+    Identifier(String),
     BuiltIn(BuiltInType),
     Keyword(KeywordType),
-    Integer(i64),
+    Integer(u64),
     Float(f64),
     Operator(OperatorType),
     Bracket(BracketInfo),

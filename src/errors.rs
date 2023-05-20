@@ -4,5 +4,6 @@ pub enum MilaErr {
     EOFReached{line: u32, col: u32},
     UnexpectedChar{c: char, line: u32, col: u32},
     UnexpectedNumberEnd{c: char, line: u32, col: u32},
+    NoTokenMatched{line: u32, col: u32},
 }
 

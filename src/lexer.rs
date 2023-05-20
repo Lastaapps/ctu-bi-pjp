@@ -4,7 +4,7 @@ use std::{io::Read, vec::IntoIter, iter::Peekable};
 
 use either::Either::{self, Left, Right};
 
-use crate::{tokens::{TokenInfo, Token, OperatorType, BracketInfo}, base::Outcome, errors::MilaErr};
+use crate::{tokens::{TokenInfo, Token, OperatorType, BracketInfo, KeywordType, BuiltInType}, base::Outcome, errors::MilaErr};
 
 pub trait Lexer {
     fn next_token(&mut self) -> Outcome<TokenInfo>;
@@ -41,10 +41,11 @@ impl NumBase {
                 '0'..='9' => num * 16 + (c as u8 - b'0') as u64,
                 'a'..='f' => num * 16 + (c as u8 - b'a') as u64,
                 'A'..='F' => num * 16 + (c as u8 - b'A') as u64,
+                _ => panic!("Non-valid char passed")
             },
         }
     }
-    fn inc_base(&self) -> f64 {
+    fn radix(&self) -> u8 {
         match self {
             Self::Bin => 2,
             Self::Oct => 8,
@@ -93,7 +94,76 @@ impl LexerImpl {
         MilaErr::UnexpectedChar { c: c, line: self.line, col: self.col}
     }
 
-    fn read_digit_sequence(&mut self, base: NumBase) -> Outcome<(u64, u16)> {
+    fn match_keyword(keyword: String) -> Token {
+        match keyword.as_str() {
+            "begin" => Token::Keyword(KeywordType::Begin),
+            "end" => Token::Keyword(KeywordType::End),
+            "const" => Token::Keyword(KeywordType::Const),
+            "procedure" => Token::Keyword(KeywordType::Procedure),
+            "forward" => Token::Keyword(KeywordType::Forward),
+            "function" => Token::Keyword(KeywordType::Function),
+            "if" => Token::Keyword(KeywordType::If),
+            "then" => Token::Keyword(KeywordType::Then),
+            "else" => Token::Keyword(KeywordType::Else),
+            "program" => Token::Keyword(KeywordType::Program),
+            "while" => Token::Keyword(KeywordType::While),
+            "exit" => Token::Keyword(KeywordType::Exit),
+            "var" => Token::Keyword(KeywordType::Var),
+            "integer" => Token::Keyword(KeywordType::Integer),
+            "for" => Token::Keyword(KeywordType::For),
+            "do" => Token::Keyword(KeywordType::Do),
+            "array" => Token::Keyword(KeywordType::Array),
+
+            "and" => Token::Operator(OperatorType::And),
+            "or" => Token::Operator(OperatorType::Or),
+            "xor" => Token::Operator(OperatorType::Xor),
+            "downto" => Token::Operator(OperatorType::Downto),
+            "to" => Token::Operator(OperatorType::To),
+            "mod" => Token::Operator(OperatorType::Mod),
+            
+            "dec" => Token::BuiltIn(BuiltInType::Dec),
+            "inc" => Token::BuiltIn(BuiltInType::Inc),
+            "writeln" => Token::BuiltIn(BuiltInType::Writeln),
+            "readln" => Token::BuiltIn(BuiltInType::Readln),
+            "write" => Token::BuiltIn(BuiltInType::Write),
+
+            _ => Token::Identifier(keyword)
+        }
+    }
+
+    fn process_identifier(&mut self) -> Outcome<Option<Token>> {
+        match self.peek(){
+            Some(next) => next,
+            None => return Ok(Some(Token::EOF)),
+        };
+
+        let mut is_first = true;
+        let mut buff = String::new();
+        loop {
+            let next = match self.peek() {
+                Some(next) => next,
+                None => break,
+            };
+
+            if next.is_alphabetic() || (!is_first && (next.is_ascii_digit() || next == &'.')) {
+                buff.push(*next);
+            } else {
+                break;
+            };
+
+            is_first = false;
+        };
+
+        if buff.len() == 0 {
+            return Ok(None)
+        }
+
+        buff = buff.to_lowercase();
+
+        Ok(Some(Self::match_keyword(buff)))
+    }
+
+    fn read_digit_sequence(&mut self, base: &NumBase) -> Outcome<(u64, u16)> {
         let mut acu = 0u64;
         let mut len = 0u16;
         let mut any_read = false;
@@ -112,6 +182,7 @@ impl LexerImpl {
 
             if base.is_valid(&next) {
                 acu = base.add_digit_to_num(acu, next);
+                len += 1;
                 any_read = true;
             } else {
                 if !any_read {
@@ -123,7 +194,7 @@ impl LexerImpl {
     }
 
     fn process_digits_in_base(&mut self, base: NumBase) -> Outcome<Either<u64, f64>> {
-        let main = self.read_digit_sequence(base)?;
+        let main = self.read_digit_sequence(&base)?;
 
         match self.peek() {
             Some('.') => (),
@@ -131,19 +202,19 @@ impl LexerImpl {
         }
         self.progress();
 
-        let dec = self.read_digit_sequence(base)?;
-        let powed = base.inc_base().powf(dec.1.into());
+        let dec = self.read_digit_sequence(&base)?;
+        let powed = (base.radix() as f64).powi(dec.1.into());
         let res = main.0 as f64 + dec.0 as f64 / powed;
 
         return Ok(Right(res));
     }
 
-    fn process_number(&mut self) -> Outcome<Token> {
+    fn process_number(&mut self) -> Outcome<Option<Token>> {
         
         let next_opt = self.peek();
         let next = match next_opt {
             Some(next) => next,
-            None => return Ok(Token::EOF),
+            None => return Ok(Some(Token::EOF)),
         };
 
         let res = match next {
@@ -160,12 +231,13 @@ impl LexerImpl {
                 self.process_digits_in_base(NumBase::Hex)
             }
             '0'..='9' =>
-                self.process_digits_in_base(NumBase::Dec)
+                self.process_digits_in_base(NumBase::Dec),
+            _ => return Ok(None),
         }?;
-        Ok(match res {
+        Ok(Some(match res {
             Left(v) => Token::Integer(v),
             Right(v) => Token::Float(v),
-        })
+        }))
     }
 
     fn process_operator_or_bracket(&mut self) -> Outcome<Option<Token>> {
@@ -177,7 +249,7 @@ impl LexerImpl {
         Ok(Some(match next {
             ':' => {
                 self.progress();
-                let sec = self.peek().ok_or_else(|| self.err_eof())?;
+                let sec_opt = self.peek().ok_or_else(|| self.err_eof())?;
                 match sec {
                     '=' => {
                         self.progress();
@@ -266,6 +338,7 @@ impl LexerImpl {
                 self.progress();
                 Token::Bracket(BracketInfo{is_square: true, is_open: false})
             },
+            _ => return Ok(None),
         }))
     }
 }
@@ -290,19 +363,23 @@ impl Lexer for LexerImpl {
             }
         };
 
-        match self.peek() {
-            None => {Ok(TokenInfo{
-                token: Token::EOF,
-                line: self.line,
-                column: self.col,
-            })}
-            
-            Some(read) => {
-                // operator
-                // number
-                // text
-                ; panic!("")
+        let res_token = match self.process_operator_or_bracket()?
+        .or(self.process_number()?)
+        .or(self.process_identifier()?) {
+            Some(token) => token,
+            None => {
+                if self.peek() == None {
+                    Token::EOF
+                } else {
+                    return Err(MilaErr::NoTokenMatched { line: self.line, col: self.col } )
+                }
             }
-        }
+        };
+
+        Ok(TokenInfo{
+            token: res_token,
+            line: self.line,
+            column: self.col,
+        })
     }
 }

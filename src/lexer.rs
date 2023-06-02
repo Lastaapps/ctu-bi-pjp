@@ -1,6 +1,6 @@
 
 use core::panic;
-use std::{io::Read, vec::IntoIter, iter::Peekable};
+use std::{vec::IntoIter, iter::Peekable};
 
 use either::Either::{self, Left, Right};
 
@@ -10,15 +10,17 @@ pub trait Lexer {
     fn next_token(&mut self) -> Outcome<TokenInfo>;
 }
 
+pub type LexerItr = Peekable<IntoIter<char>>;
+
 struct LexerImpl {
-    itr: Peekable<IntoIter<char>>,
+    itr: LexerItr,
     line: u32,
     col: u32,
 }
 
 impl dyn Lexer {
-    pub fn factory() -> Outcome<Box<dyn Lexer>> {
-        Ok(Box::new(LexerImpl::new()?))
+    pub fn factory(iter: LexerItr) -> Outcome<Box<dyn Lexer>> {
+        Ok(Box::new(LexerImpl::new(iter)?))
     }
 }
 
@@ -63,16 +65,8 @@ impl NumBase {
 
 impl LexerImpl {
 
-    fn new() -> Outcome<Self> {
-        let mut buff = String::new();
-
-        std::io::stdin()
-        .read_to_string(&mut buff)
-        .map_err(|err| {MilaErr::ReadStdInFailed(err)})?;
-
-        let itr = buff.chars().collect::<Vec<_>>().into_iter();
-        let peekable = itr.peekable();
-        Ok(Self {itr: peekable, line: 1, col: 0})
+    fn new(iter: LexerItr) -> Outcome<Self> {
+        Ok(Self {itr: iter, line: 1, col: 0})
     }
 
     fn next(&mut self) -> Option<char> {

@@ -6,9 +6,11 @@ use lexer::{Lexer, LexerItr};
 
 use crate::tokens::Token;
 
+mod ast;
 mod base;
 mod errors;
 mod lexer;
+mod parser;
 mod tokens;
 
 enum AppMode {

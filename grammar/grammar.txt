@@ -26,18 +26,13 @@ integer
 for
 do
 
-// 2-character operators
-notequal
-lessequal
-ge
-assign
-or
 
-// 3-character operators (keywords)
+assign
 mod
 div
 not
 and
+or
 xor
 
 // keywords in for loop
@@ -171,4 +166,3 @@ inc
 writeln
 readln
 write
-

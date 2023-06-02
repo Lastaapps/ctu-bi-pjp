@@ -7,3 +7,9 @@ pub enum MilaErr {
     NoTokenMatched{line: u32, col: u32},
 }
 
+impl MilaErr {
+    pub fn msg(self) -> String {
+        String::from("Idk, todo")
+    }
+}
+

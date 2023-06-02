@@ -16,6 +16,12 @@ struct LexerImpl {
     col: u32,
 }
 
+impl dyn Lexer {
+    pub fn factory() -> Outcome<Box<dyn Lexer>> {
+        Ok(Box::new(LexerImpl::new()?))
+    }
+}
+
 enum NumBase {
     Bin, Oct, Dec, Hex,
 }
@@ -80,8 +86,8 @@ impl LexerImpl {
         };
         res
     }
-    fn peek(&mut self) -> Option<&char> {
-        self.itr.peek()
+    fn peek(&mut self) -> Option<char> {
+        self.itr.peek().map(|x| *x)
     }
     fn progress(&mut self) -> Option<()> {
         self.next().map(|_| {()})
@@ -145,8 +151,9 @@ impl LexerImpl {
                 None => break,
             };
 
-            if next.is_alphabetic() || (!is_first && (next.is_ascii_digit() || next == &'.')) {
-                buff.push(*next);
+            if next.is_alphabetic() || (!is_first && (next.is_ascii_digit() || next == '.')) {
+                buff.push(next);
+                self.progress();
             } else {
                 break;
             };
@@ -170,7 +177,7 @@ impl LexerImpl {
 
         loop {
             let next_opt = self.peek();
-            let next = *match next_opt {
+            let next = match next_opt {
                 Some(s) => s,
                 None => 
                     if !any_read {
@@ -187,8 +194,11 @@ impl LexerImpl {
             } else {
                 if !any_read {
                     return Err(MilaErr::UnexpectedNumberEnd { c: next, line: self.line, col: self.col })
+                } else {
+                    break;
                 }
             }
+            self.progress();
         };
         return Ok((acu, len));
     }
@@ -250,7 +260,7 @@ impl LexerImpl {
             ':' => {
                 self.progress();
                 let sec_opt = self.peek().ok_or_else(|| self.err_eof())?;
-                match sec {
+                match sec_opt {
                     '=' => {
                         self.progress();
                         Token::Operator(OperatorType::Assign)
@@ -270,7 +280,7 @@ impl LexerImpl {
                         self.progress();
                         Token::Operator(OperatorType::Ne)
                     },
-                    _ => return Err(self.err_char(*sec)),
+                    _ => return Err(self.err_char(sec)),
 
                 }
             },
@@ -363,6 +373,8 @@ impl Lexer for LexerImpl {
             }
         };
 
+        let line_col = (self.line, self.col);
+
         let res_token = match self.process_operator_or_bracket()?
         .or(self.process_number()?)
         .or(self.process_identifier()?) {
@@ -378,8 +390,8 @@ impl Lexer for LexerImpl {
 
         Ok(TokenInfo{
             token: res_token,
-            line: self.line,
-            column: self.col,
+            line: line_col.0,
+            column: line_col.1,
         })
     }
 }

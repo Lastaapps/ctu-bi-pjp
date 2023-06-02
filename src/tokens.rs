@@ -1,4 +1,5 @@
 
+#[derive(Debug, PartialEq)]
 pub enum KeywordType {
     Begin,
     End,
@@ -19,6 +20,7 @@ pub enum KeywordType {
     Array,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum OperatorType {
     Assign,
     Eq,
@@ -42,11 +44,13 @@ pub enum OperatorType {
     Colon,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct BracketInfo {
     pub is_square: bool,
     pub is_open: bool,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum BuiltInType {
     Dec,
     Inc,
@@ -55,6 +59,7 @@ pub enum BuiltInType {
     Write,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Token {
     Identifier(String),
     BuiltIn(BuiltInType),
@@ -66,6 +71,7 @@ pub enum Token {
     EOF,
 }
 
+#[derive(Debug)]
 pub struct TokenInfo {
     pub token: Token,
     pub line: u32,

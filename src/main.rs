@@ -79,8 +79,7 @@ fn main() {
 
     match run_mila(mode) {
         Err(e) => {
-            let msg = e.msg();
-            eprintln!("Failed: {msg}");
+            eprintln!("Compilation failed: {e}");
             process::exit(1);
         },
         _ => {},

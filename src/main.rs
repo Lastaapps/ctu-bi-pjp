@@ -58,7 +58,7 @@ fn run_mila(mode: AppMode) -> Outcome<()> {
 
     loop {
         let token = lexer.next_token()?;
-        println!("{token:?}");
+        println!("{token}");
         if token.token == Token::EOF {
             break;
         };

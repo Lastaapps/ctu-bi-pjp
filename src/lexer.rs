@@ -84,7 +84,7 @@ impl LexerImpl {
         self.itr.peek().map(|x| *x)
     }
     fn progress(&mut self) -> Option<()> {
-        self.next().map(|_| {()})
+        self.next().map(|_| ())
     }
 
     fn err_eof(&self) -> MilaErr {
@@ -280,7 +280,7 @@ impl LexerImpl {
             },
             '>' => {
                 self.progress();
-                let sec = self.next().ok_or_else(|| self.err_eof())?;
+                let sec = self.peek().ok_or_else(|| self.err_eof())?;
                 match sec {
                     '=' => {
                         self.progress();
@@ -292,7 +292,7 @@ impl LexerImpl {
             },
             '<' => {
                 self.progress();
-                let sec = self.next().ok_or_else(|| self.err_eof())?;
+                let sec = self.peek().ok_or_else(|| self.err_eof())?;
                 match sec {
                     '=' => {
                         self.progress();
@@ -325,6 +325,18 @@ impl LexerImpl {
             ';' => {
                 self.progress();
                 Token::Operator(OperatorType::Semicolon)
+            },
+            '.' => {
+                self.progress();
+                let sec = self.peek().ok_or_else(|| self.err_eof())?;
+                match sec {
+                    '.' => {
+                        self.progress();
+                        Token::Operator(OperatorType::Ranges)
+                    },
+                    _ => return Err(MilaErr::UnexpectedChar { c: sec, line: self.line, col: self.col })
+
+                }
             },
             '(' => {
                 self.progress();
@@ -369,9 +381,17 @@ impl Lexer for LexerImpl {
 
         let line_col = (self.line, self.col);
 
-        let res_token = match self.process_operator_or_bracket()?
-        .or(self.process_number()?)
-        .or(self.process_identifier()?) {
+        // dint't manage to write it using or_else
+        let res_token_opt = 
+            match self.process_operator_or_bracket()? {
+                Some(token) => Some(token),
+                None => 
+                match self.process_number()? {
+                    Some(token) => Some(token),
+                    None => self.process_identifier()?,
+                },
+            };
+        let res_token = match res_token_opt {
             Some(token) => token,
             None => {
                 if self.peek() == None {

@@ -1,3 +1,5 @@
+use std::fmt::{Display, Debug};
+
 
 #[derive(Debug, PartialEq)]
 pub enum KeywordType {
@@ -32,6 +34,7 @@ pub enum OperatorType {
     And,
     Or,
     Xor,
+    Ranges,
     Downto,
     To,
     Plus,
@@ -44,10 +47,24 @@ pub enum OperatorType {
     Colon,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub struct BracketInfo {
     pub is_square: bool,
     pub is_open: bool,
+}
+
+impl Display for BracketInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{{s:{}, o:{}}}", self.is_square, self.is_open)
+    }
+}
+impl Debug for BracketInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BI")
+            .field("sqr", &self.is_square)
+            .field("opn", &self.is_open)
+            .finish()
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -78,3 +95,8 @@ pub struct TokenInfo {
     pub column: u32,
 }
 
+impl Display for TokenInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "TI <{:2}:{:2}> {:?}", self.line, self.column, self.token)
+    }
+}

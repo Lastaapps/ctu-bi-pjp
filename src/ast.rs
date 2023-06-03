@@ -1,4 +1,5 @@
 
+#[derive(Debug, PartialEq)]
 pub enum Type {
     Integer,
     Float,
@@ -6,6 +7,7 @@ pub enum Type {
     Array(Box<Type>, u32),
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Value {
     IntValue(i64),
     FloatValue(f64),
@@ -13,7 +15,7 @@ pub enum Value {
 }
 
 impl Value {
-    fn to_type(self) -> Type {
+    pub fn to_type(self) -> Type {
         match self {
             Value::IntValue(_) => Type::Integer,
             Value::FloatValue(_) => Type::Float,
@@ -22,27 +24,31 @@ impl Value {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Program {
-    name: String,
-    vars: Vec<(String, Type)>,
-    constants: Vec<(String, Value)>,
-    declarations: Vec<Declaration>,
-    functions: Vec<Function>,
-    main: Vec<Statement>,
+    pub name: String,
+    pub vars: Vec<(String, Type)>,
+    pub constants: Vec<(String, Value)>,
+    pub declarations: Vec<Declaration>,
+    pub functions: Vec<Function>,
+    pub main: Statement,
 }
 
-struct Declaration {
-    name: String,
-    params: Vec<(String, Type)>,
-    return_type: Type,
+#[derive(Debug, PartialEq)]
+pub struct Declaration {
+    pub name: String,
+    pub params: Vec<(String, Type)>,
+    pub return_type: Type,
 }
 
-struct Function {
-    name: String,
-    vars: Vec<(String, Type)>,
-    scope: Box<Statement>,
+#[derive(Debug, PartialEq)]
+pub struct Function {
+    pub name: String,
+    pub vars: Vec<(String, Type)>,
+    pub scope: Box<Statement>,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum MemorySpace {
     VarAccess {
         name: String,
@@ -57,6 +63,7 @@ pub enum MemorySpace {
 
 type BExpr = Box<Expr>;
 
+#[derive(Debug, PartialEq)]
 pub enum Expr {
     Add(BExpr, BExpr),
     Sub(BExpr, BExpr),
@@ -81,7 +88,7 @@ pub enum Expr {
     MemAccess(Box<MemorySpace>),
 }
 
-
+#[derive(Debug, PartialEq)]
 pub enum Statement {
     Block {
         statements: Vec<Statement>,

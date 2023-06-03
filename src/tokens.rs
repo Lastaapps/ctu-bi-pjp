@@ -1,7 +1,7 @@
 use std::fmt::{Display, Debug};
 
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum KeywordType {
     Begin,
     End,
@@ -22,7 +22,7 @@ pub enum KeywordType {
     Array,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum OperatorType {
     Assign,
     Eq,
@@ -47,7 +47,7 @@ pub enum OperatorType {
     Colon,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub struct BracketInfo {
     pub is_square: bool,
     pub is_open: bool,
@@ -67,7 +67,7 @@ impl Debug for BracketInfo {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum BuiltInType {
     Dec,
     Inc,
@@ -76,7 +76,7 @@ pub enum BuiltInType {
     Write,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     Identifier(String),
     BuiltIn(BuiltInType),
@@ -88,7 +88,7 @@ pub enum Token {
     EOF,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TokenInfo {
     pub token: Token,
     pub line: u32,

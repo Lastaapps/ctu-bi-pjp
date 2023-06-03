@@ -3,6 +3,7 @@ use std::{process, env, io::Read, path::Path, fs::File};
 use base::Outcome;
 use errors::MilaErr;
 use lexer::{Lexer, LexerItr};
+use parser::Parser;
 
 use crate::tokens::Token;
 
@@ -23,7 +24,7 @@ fn stdin_iter() -> Outcome<LexerItr> {
 
     std::io::stdin()
     .read_to_string(&mut buff)
-    .map_err(|err| {MilaErr::ReadStdInFailed(err)})?;
+    .map_err(|err| MilaErr::ReadStdInFailed(err.to_string()))?;
 
     let itr = buff.chars().collect::<Vec<_>>().into_iter();
     let peekable = itr.peekable();
@@ -43,7 +44,7 @@ fn file_iter(names: Vec<String>) -> Outcome<LexerItr> {
         };
 
         file.read_to_string(&mut buff)
-            .map_err(|err| {MilaErr::ReadFileFailed(err, name)})?;
+            .map_err(|err| {MilaErr::ReadFileFailed(err.to_string(), name)})?;
     };
     
     let itr = buff.chars().collect::<Vec<_>>().into_iter();
@@ -58,13 +59,18 @@ fn run_mila(mode: AppMode) -> Outcome<()> {
     }?;
     let mut lexer = <dyn Lexer>::factory(iter)?;
 
-    loop {
-        let token = lexer.next_token()?;
-        println!("{token}");
-        if token.token == Token::EOF {
-            break;
-        };
-    };
+    // loop {
+    //     let token = lexer.next_token()?;
+    //     println!("{token}");
+    //     if token.token == Token::EOF {
+    //         break;
+    //     };
+    // };
+    // return Ok(())
+
+    let mut parser = Parser::factory(lexer);
+    let ast = parser.parse_ast()?;
+    println!("{:?}", ast);
 
     Ok(())
 }

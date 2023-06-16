@@ -1,15 +1,15 @@
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Type {
     Integer,
     Float,
     String,
-    Array(Box<Type>, u32),
+    Array(Box<Type>, i64, i64),
 }
 
 #[derive(Debug, PartialEq)]
 pub enum Value {
-    IntValue(i64),
+    IntValue(u64),
     FloatValue(f64),
     StringValue(String),
 }
@@ -27,12 +27,20 @@ impl Value {
 #[derive(Debug, PartialEq)]
 pub struct Program {
     pub name: String,
-    pub vars: Vec<(String, Type)>,
-    pub constants: Vec<(String, Value)>,
+    pub scope: Scope,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Scope {
+    pub vars: Vec<Variable>,
+    pub constants: Vec<Constant>,
     pub declarations: Vec<Declaration>,
     pub functions: Vec<Function>,
     pub main: Statement,
 }
+
+pub type Variable = (String, Type);
+pub type Constant = (String, Value);
 
 #[derive(Debug, PartialEq)]
 pub struct Declaration {

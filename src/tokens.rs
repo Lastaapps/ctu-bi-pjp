@@ -1,6 +1,7 @@
 use std::fmt::{Display, Debug};
 
 
+pub type KT = KeywordType;
 #[derive(Debug, PartialEq, Clone)]
 pub enum KeywordType {
     Begin,
@@ -17,11 +18,14 @@ pub enum KeywordType {
     Exit,
     Var,
     Integer,
+    Float,
     For,
     Do,
     Array,
+    Of,
 }
 
+pub type OT = OperatorType;
 #[derive(Debug, PartialEq, Clone)]
 pub enum OperatorType {
     Assign,
@@ -47,6 +51,7 @@ pub enum OperatorType {
     Colon,
 }
 
+pub type BI = BracketInfo;
 #[derive(PartialEq, Clone)]
 pub struct BracketInfo {
     pub is_square: bool,
@@ -67,6 +72,7 @@ impl Debug for BracketInfo {
     }
 }
 
+pub type BIT = BuiltInType;
 #[derive(Debug, PartialEq, Clone)]
 pub enum BuiltInType {
     Dec,

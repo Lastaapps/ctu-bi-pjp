@@ -15,10 +15,15 @@ pub enum MilaErr {
 
     // parser
     UnexpectedToken {
-        expected: Token,
-        actual: TokenInfo,
+        exp: Token,
+        act: TokenInfo,
+    },
+    InvalidToken {
+        modl: String,
+        act: TokenInfo,
     },
     MissingProgramName,
+    MissingMainFunction,
 }
 
 impl Display for MilaErr {
@@ -39,10 +44,14 @@ impl Display for MilaErr {
                 write!(f, "No token matched at {line}:{col}"),
 
             // parser
-            Self::UnexpectedToken { expected, actual } => 
+            Self::UnexpectedToken { exp: expected, act: actual } => 
                 write!(f, "Unexpected token: Exp {:?}, Actual {}", expected, actual),
+            Self::InvalidToken { modl: module, act: actual } => 
+                write!(f, "Unexpected token in module {}, got {}", module, actual),
             Self::MissingProgramName =>
-                write!(f, "Missing program name"),
+                write!(f, "Missing the program name"),
+            Self::MissingMainFunction =>
+                write!(f, "Missing the main function"),
         }
     }
 }

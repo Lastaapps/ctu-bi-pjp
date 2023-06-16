@@ -110,9 +110,11 @@ impl LexerImpl {
             "exit" => Token::Keyword(KeywordType::Exit),
             "var" => Token::Keyword(KeywordType::Var),
             "integer" => Token::Keyword(KeywordType::Integer),
+            "float" => Token::Keyword(KeywordType::Float),
             "for" => Token::Keyword(KeywordType::For),
             "do" => Token::Keyword(KeywordType::Do),
             "array" => Token::Keyword(KeywordType::Array),
+            "of" => Token::Keyword(KeywordType::Of),
 
             "and" => Token::Operator(OperatorType::And),
             "or" => Token::Operator(OperatorType::Or),

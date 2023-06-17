@@ -126,4 +126,5 @@ pub enum Statement {
         true_branch: Box<Statement>,
         false_branch: Box<Statement>,
     },
+    Exit,
 }

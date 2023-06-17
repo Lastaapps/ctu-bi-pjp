@@ -2,7 +2,7 @@ use std::{vec, iter::Peekable};
 
 use either::Either;
 
-use crate::{ast::{Program, Statement, Scope, Value, Constant, Declaration, Function, Variable, Type}, lexer::Lexer, base::Outcome, tokens::{TokenInfo, Token, KeywordType, OperatorType, KT, OT, BI}, errors::MilaErr};
+use crate::{ast::{Program, Statement, Scope, Value, Constant, Declaration, Function, Variable, Type, Expr}, lexer::Lexer, base::Outcome, tokens::{TokenInfo, Token, KeywordType, OperatorType, KT, OT, BI}, errors::MilaErr};
 
 struct LexerIterator {
     lexer: Box<dyn Lexer>,
@@ -285,7 +285,7 @@ fn parse_params(parser: &mut Parser) -> Outcome<Vec<Variable>>{
         params.push((name, param_type));
 
         if let Token::Operator(OT::Semicolon) = parser.peek()?.token {
-            parser.consume();
+            parser.consume()?;
         } else { break; }
     };
     Ok(params)
@@ -298,5 +298,99 @@ fn parse_main(parser: &mut Parser) -> Outcome<Statement> {
 }
 
 fn parse_block(parser: &mut Parser) -> Outcome<Statement> {
+    parser.assert_token(Token::Keyword(KT::Begin))?;
+    
+    let mut statements: Vec<Statement> = vec![];
+
+    loop {
+        let stmt = parse_statement(parser)?;
+        statements.push(stmt);
+
+        if let Token::Operator(OT::Semicolon) = parser.peek()?.token {
+            parser.consume()?;
+        } else { break; }
+
+        if let Token::Keyword(KT::End) = parser.peek()?.token {
+            break;
+        }
+    }
+
+    parser.assert_token(Token::Keyword(KT::End))?;
+
+    Ok(Statement::Block { statements: statements })
+}
+
+fn parse_statement(parser: &mut Parser) -> Outcome<Statement> {
+    let next_token = parser.peek()?;
+    match next_token.token {
+        // TODO assign
+        // TODO expr
+        Token::Keyword(KT::For) => parse_for(parser),
+        Token::Keyword(KT::While) => parse_while(parser),
+        Token::Keyword(KT::If) => parse_if(parser),
+        Token::Keyword(KT::Exit) => Ok(Statement::Exit),
+        _ => Err(MilaErr::InvalidToken { modl: String::from("Invalid statement start"), act: next_token })
+    }
+}
+
+fn parse_block_or_statement(parser: &mut Parser) -> Outcome<Statement> {
+    if let Token::Keyword(KT::Begin) = parser.peek()?.token {
+        parse_block(parser)
+    } else {
+        parse_statement(parser)
+    }
+}
+
+fn parse_for(parser: &mut Parser) -> Outcome<Statement> {
+    parser.assert_token(Token::Keyword(KT::For))?;
+
+    // TODO
+
+    let dir_token = parser.consume()?;
+    let dir = match dir_token.token {
+        Token::Operator(OT::To) => true,
+        Token::Operator(OT::Downto) => false,
+        _ => return Err(MilaErr::InvalidToken { modl: String::from("For wrong direction"), act: dir_token }),
+    };
+
+    let limit_boundary = parse_expr(parser)?;
+
+    parser.assert_token(Token::Keyword(KT::Do))?;
+
+    let code = parse_block_or_statement(parser)?;
+
+    ;todo!()
+}
+
+fn parse_while(parser: &mut Parser) -> Outcome<Statement> {
+    parser.assert_token(Token::Keyword(KT::While))?;
+
+    let condition = parse_expr(parser)?;
+
+    parser.assert_token(Token::Keyword(KT::Do))?;
+
+    let code = parse_block_or_statement(parser)?;
+
+    Ok(Statement::While { cond:condition, scope: Box::new(code) })
+}
+
+fn parse_if(parser: &mut Parser) -> Outcome<Statement> {
+    parser.assert_token(Token::Keyword(KT::If))?;
+
+    let condition = parse_expr(parser)?;
+
+    parser.assert_token(Token::Keyword(KT::Then))?;
+    let true_branch = parse_block_or_statement(parser)?;
+
+    if Token::Keyword(KT::Else) != parser.peek()?.token {
+        return Ok(Statement::If { cond: condition, true_branch: Box::new(true_branch) })
+    };
+    parser.consume()?;
+    let false_branch = parse_block_or_statement(parser)?;
+
+    Ok(Statement::IfElse { cond: condition, true_branch: Box::new(true_branch), false_branch: Box::new(false_branch) })
+}
+
+fn parse_expr(parser: &mut Parser) -> Outcome<Expr> {
     ;todo!()
 }

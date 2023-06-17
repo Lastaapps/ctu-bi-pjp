@@ -99,7 +99,7 @@ MAIN               -> BLOCK.
 BLOCK              -> begin STMT BLOCK* end
 BLOCK*             -> ; BLOCK**
                    -> 
-BLOCK**            -> STMT
+BLOCK**            -> STMT BLOCK*
                    -> 
            
 
@@ -110,21 +110,21 @@ STMT               -> EXPR
                    -> IF
                    -> exit
 
+BORS               -> BLOCK
+                   -> STMT
+
 ASSIGN             -> VAR_ACCESS := EXPR
 
 
-FOR                -> ASSIGN FOR_DIR EXPR do BORS
+FOR                -> for ASSIGN FOR_DIR EXPR do BORS
 FOR_DIR            -> to
-FOR_DIR            -> downto
+                   -> downto
 
 WHILE              -> while EXPR do BORS
 
 IF                 -> if EXPR then BORS ELSE
 ELSE               -> else BORS
                    -> 
-
-BORS               -> BLOCK
-                   -> STMT
 
 EXPR               -> OP_BIN6
 OP_BIN6            -> OP_BIN5 OP_BIN6*

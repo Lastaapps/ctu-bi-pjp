@@ -83,15 +83,16 @@ NUMBER             -> DEC_NUMBER
                    -> &OCT_NUMBER
                    -> %BIN_NUMBER
 
-FUNC               -> function name(PARAMS*): TYPE;
-FUNC*              -> VAR_DEF BLOCK;
+FUNC               -> function name(PARAMS_E): TYPE;
+FUNC*              -> BLOCK;
+                   -> VAR_DEF BLOCK;
                    -> forward;
-PARAM              -> name : TYPE
-PARAMS*            -> PARAMS
+PARAMS_E           -> PARAMS
                    -> 
 PARAMS             -> PARAM PARAMS*
 PARAMS*            -> ; PARAM
                    -> 
+PARAM              -> name : TYPE
 
 MAIN               -> BLOCK.
 

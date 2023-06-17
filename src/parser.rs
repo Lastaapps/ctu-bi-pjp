@@ -122,7 +122,7 @@ fn parse_scope(parser: &mut Parser) -> Outcome<Scope> {
 }
 
 fn parse_var(parser: &mut Parser) -> Outcome<Vec<Variable>> {
-    parser.consume()?; // var
+    parser.assert_token(Token::Keyword(KT::Var))?;
     let mut vars : Vec<Variable> = vec![];
     
     loop {
@@ -156,24 +156,18 @@ fn parse_var(parser: &mut Parser) -> Outcome<Vec<Variable>> {
         };
 
         if let Token::Identifier(_) = parser.peek()?.token {
-            break;
-        };
+        } else { break; };
     };
 
     Ok(vars)
 }
 
 fn parse_constant(parser: &mut Parser) -> Outcome<Vec<Constant>> {
-    parser.consume()?; // const
+    parser.assert_token(Token::Keyword(KT::Const))?;
     let mut consts : Vec<Constant> = vec![];
     
     loop {
-        let name_info = parser.consume()?;
-        let name = if let Token::Identifier(name) = name_info.token {
-            name
-        } else {
-            return Err(MilaErr::UnexpectedToken { exp: Token::Identifier(String::from("Idk")), act: name_info })
-        };
+        let name = parse_identifier(parser)?;
 
         parser.assert_token(Token::Operator(OT::Eq))?;
 
@@ -181,8 +175,7 @@ fn parse_constant(parser: &mut Parser) -> Outcome<Vec<Constant>> {
         consts.push((name, parsed_literal));
 
         if let Token::Identifier(_) = parser.peek()?.token {
-            break;
-        };
+        } else { break; };
     };
 
     Ok(consts)
@@ -196,6 +189,15 @@ fn parse_literal(parser: &mut Parser) -> Outcome<Value> {
         // TODO string
         _ => return Err(MilaErr::InvalidToken { modl: String::from("Expected a literal"), act: token_info })
     })
+}
+
+fn parse_identifier(parser: &mut Parser) -> Outcome<String> {
+    let name_info = parser.consume()?;
+    if let Token::Identifier(name) = name_info.token {
+        Ok(name)
+    } else {
+        Err(MilaErr::UnexpectedToken { exp: Token::Identifier(String::from("Expected an identifier")), act: name_info })
+    }
 }
 
 // required for literals while creating an array type
@@ -238,9 +240,63 @@ fn parse_type(parser: &mut Parser) -> Outcome<Type> {
 }
 
 fn parse_fun_or_dec(parser: &mut Parser) -> Outcome<(Declaration, Option<Function>)> {
-    ;todo!()
+    parser.assert_token(Token::Keyword(KT::Function))?;
+
+    let name = parse_identifier(parser)?;
+
+    parser.assert_token(Token::Bracket(BI{is_square: false, is_open: true}))?;
+    
+    let params = parse_params(parser)?;
+
+    parser.assert_token(Token::Bracket(BI{is_square: false, is_open: false}))?;
+    parser.assert_token(Token::Operator(OT::Colon))?;
+
+    let return_type = parse_type(parser)?;
+    let declaration = Declaration{name: name.clone(), params: params, return_type: return_type};
+
+    if let Token::Keyword(KT::Forward) = parser.peek()?.token {
+        parser.consume()?;
+        parser.assert_token(Token::Operator(OT::Semicolon))?;
+        return Ok((declaration, None));
+    }
+
+    let vars: Vec<Variable> = if let Token::Keyword(KT::Var) = parser.peek()?.token {
+        parse_var(parser)?
+    } else { vec![] };
+
+    let code = parse_block(parser)?;
+    
+    Ok((declaration, Some(Function { name: name, vars: vars, scope: Box::new(code) })))
+}
+
+fn parse_params(parser: &mut Parser) -> Outcome<Vec<Variable>>{
+    if let Token::Bracket(BI{is_square: false, is_open: false}) = parser.peek()?.token {
+        return Ok(vec![]);
+    }
+
+    let mut params: Vec<Variable> = vec![];
+    loop {
+        let name = parse_identifier(parser)?;
+
+        parser.assert_token(Token::Operator(OT::Colon))?;
+
+        let param_type = parse_type(parser)?;
+
+        params.push((name, param_type));
+
+        if let Token::Operator(OT::Semicolon) = parser.peek()?.token {
+            parser.consume();
+        } else { break; }
+    };
+    Ok(params)
 }
 
 fn parse_main(parser: &mut Parser) -> Outcome<Statement> {
+    let code = parse_block(parser)?;
+    parser.assert_token(Token::Operator(OT::Comma))?;
+    Ok(code)
+}
+
+fn parse_block(parser: &mut Parser) -> Outcome<Statement> {
     ;todo!()
 }

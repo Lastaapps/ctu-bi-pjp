@@ -43,7 +43,7 @@ pub enum OperatorType {
     To,
     Plus,
     Minus,
-    Mult,
+    Mul,
     Div,
     Mod,
     Comma,

@@ -314,7 +314,7 @@ impl LexerImpl {
             },
             '*' => {
                 self.progress();
-                Token::Operator(OperatorType::Mult)
+                Token::Operator(OperatorType::Mul)
             },
             '/' => {
                 self.progress();

@@ -392,5 +392,171 @@ fn parse_if(parser: &mut Parser) -> Outcome<Statement> {
 }
 
 fn parse_expr(parser: &mut Parser) -> Outcome<Expr> {
-    ;todo!()
+    parse_op8(parser)
+
+    // let mut lhs = parse_op(parser)?;
+    // let peeked = parser.peek()?.token;
+
+    // left associativity example
+    // while Token::Operator(OT::) == parser.peek()?.token {
+    //     parser.consume()?;
+    //     let rhs = parse_op(parser)?;
+    //     lhs = Expr::(Box::new(lhs), Box::new(rhs));
+    // };
+
+    // right associativity example
+    // if Token::Operator(OT::) == parser.peek()?.token {
+    //     parser.consume()?;
+    //     let rhs = parse_op(parser)?;
+    //     lhs = Expr::(Box::new(expr), Box::new(rhs));
+    // };
+}
+
+// and
+fn parse_op8(parser: &mut Parser) -> Outcome<Expr> {
+    let mut lhs = parse_op7(parser)?;
+    let peeked = parser.peek()?.token;
+
+    while Token::Operator(OT::And) == peeked {
+        parser.consume()?;
+        let rhs = parse_op7(parser)?;
+        lhs = Expr::And(Box::new(lhs), Box::new(rhs));
+    };
+    Ok(lhs)
+}
+
+// or
+fn parse_op7(parser: &mut Parser) -> Outcome<Expr> {
+    let mut lhs = parse_op6(parser)?;
+    let peeked = parser.peek()?.token;
+
+    while Token::Operator(OT::Or) == peeked {
+        parser.consume()?;
+        let rhs = parse_op6(parser)?;
+        lhs = Expr::Or(Box::new(lhs), Box::new(rhs));
+    };
+    Ok(lhs)
+}
+
+// eq, ne
+fn parse_op6(parser: &mut Parser) -> Outcome<Expr> {
+    let mut lhs = parse_op5(parser)?;
+    let peeked = parser.peek()?.token;
+
+    loop {
+        if Token::Operator(OT::Eq) == peeked {
+            parser.consume()?;
+            let rhs = parse_op5(parser)?;
+            lhs = Expr::Eq(Box::new(lhs), Box::new(rhs));
+        } else
+        if Token::Operator(OT::Ne) == peeked {
+            parser.consume()?;
+            let rhs = parse_op5(parser)?;
+            lhs = Expr::Ne(Box::new(lhs), Box::new(rhs));
+        } else
+        { break; }
+    };
+    Ok(lhs)
+}
+
+// gt, ge, lt, le
+fn parse_op5(parser: &mut Parser) -> Outcome<Expr> {
+    let mut lhs = parse_op4(parser)?;
+    let peeked = parser.peek()?.token;
+
+    loop {
+        if Token::Operator(OT::Gt) == peeked {
+            parser.consume()?;
+            let rhs = parse_op4(parser)?;
+            lhs = Expr::Gt(Box::new(lhs), Box::new(rhs));
+        } else 
+        if Token::Operator(OT::Ge) == peeked {
+            parser.consume()?;
+            let rhs = parse_op4(parser)?;
+            lhs = Expr::Ge(Box::new(lhs), Box::new(rhs));
+        } else 
+        if Token::Operator(OT::Lt) == peeked {
+            parser.consume()?;
+            let rhs = parse_op4(parser)?;
+            lhs = Expr::Lt(Box::new(lhs), Box::new(rhs));
+        } else 
+        if Token::Operator(OT::Le) == peeked {
+            parser.consume()?;
+            let rhs = parse_op4(parser)?;
+            lhs = Expr::Le(Box::new(lhs), Box::new(rhs));
+        } else 
+        { break; }
+    };
+    Ok(lhs)
+}
+
+// mul, div, mod
+fn parse_op4(parser: &mut Parser) -> Outcome<Expr> {
+    let mut lhs = parse_op3(parser)?;
+    let peeked = parser.peek()?.token;
+
+    loop {
+        if Token::Operator(OT::Mul) == peeked {
+            parser.consume()?;
+            let rhs = parse_op3(parser)?;
+            lhs = Expr::Mul(Box::new(lhs), Box::new(rhs));
+        } else 
+        if Token::Operator(OT::Div) == peeked {
+            parser.consume()?;
+            let rhs = parse_op3(parser)?;
+            lhs = Expr::Div(Box::new(lhs), Box::new(rhs));
+        } else 
+        if Token::Operator(OT::Mod) == peeked {
+            parser.consume()?;
+            let rhs = parse_op3(parser)?;
+            lhs = Expr::Mod(Box::new(lhs), Box::new(rhs));
+        } else 
+        { break; }
+    };
+    Ok(lhs)
+}
+
+fn parse_op3(parser: &mut Parser) -> Outcome<Expr> {
+    let mut lhs = parse_op2(parser)?;
+    let peeked = parser.peek()?.token;
+
+    loop {
+        if Token::Operator(OT::Plus) == peeked {
+            parser.consume()?;
+            let rhs = parse_op2(parser)?;
+            lhs = Expr::Add(Box::new(lhs), Box::new(rhs));
+        } else 
+        if Token::Operator(OT::Minus) == peeked {
+            parser.consume()?;
+            let rhs = parse_op2(parser)?;
+            lhs = Expr::Sub(Box::new(lhs), Box::new(rhs));
+        } else 
+        { break; }
+    };
+    Ok(lhs)
+}
+
+fn parse_op2(parser: &mut Parser) -> Outcome<Expr> {
+    let peeked = parser.peek()?.token;
+    Ok(if Token::Operator(OT::Plus) == peeked {
+        parser.consume()?;
+        parse_op2(parser)?
+    } else 
+    if Token::Operator(OT::Minus) == peeked {
+        parser.consume()?;
+        let rhs = parse_op2(parser)?;
+        Expr::Sub(Box::new(Expr::Literal(Value::IntValue(0))), Box::new(rhs))
+    } else
+    { parse_op1(parser)? })
+}
+
+fn parse_op1(parser: &mut Parser) -> Outcome<Expr> {
+    let peeked = parser.peek()?.token;
+    if Token::Bracket(BI { is_square: false, is_open: true}) == peeked {
+        parser.consume()?;
+        let expr = parse_expr(parser)?;
+        parser.assert_token(Token::Bracket(BI { is_square: false, is_open: true}))?;
+        return Ok(expr);
+    };
+    todo!()
 }

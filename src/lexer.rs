@@ -246,6 +246,52 @@ impl LexerImpl {
         }))
     }
 
+    fn process_string(&mut self) -> Outcome<Option<Token>> {
+        let next_opt = self.peek();
+        let next = match next_opt {
+            Some(next) => next,
+            None => return Ok(Some(Token::EOF)),
+        };
+
+        if next != '\'' {
+            return Ok(None);
+        }
+        self.next();
+
+        let mut is_escaped = false;
+        let mut buffer = String::new();
+
+        loop {
+            let next_opt = self.next();
+            let next = match next_opt {
+                Some(next) => next,
+                None => return Err(MilaErr::UnclosedString),
+            };
+
+            if is_escaped {
+                is_escaped = false;
+                match next {
+                    'n' => '\n',
+                    't' => '\t',
+                    'r' => '\r',
+                    '\\' => '\\',
+                    '"' => '\"',
+                    '\'' => '\'',
+                    _ => return Err(MilaErr::UnknownEscapeSequence(next)),
+                };
+            } else {
+                match next {
+                    '\\' => {
+                        is_escaped = true;
+                        continue;
+                    },
+                    '\'' => return Ok(Some(Token::String(buffer))),
+                    _ => buffer.push(next),
+                }
+            }
+        }
+    }
+
     fn process_operator_or_bracket(&mut self) -> Outcome<Option<Token>> {
         let next_opt = self.peek();
         let next = match next_opt {
@@ -390,7 +436,11 @@ impl Lexer for LexerImpl {
                 None => 
                 match self.process_number()? {
                     Some(token) => Some(token),
-                    None => self.process_identifier()?,
+                    None => 
+                    match self.process_identifier()? {
+                        Some(token) => Some(token),
+                        None => self.process_string()?,
+                    },
                 },
             };
         let res_token = match res_token_opt {

@@ -91,6 +91,7 @@ pub enum Token {
     Float(f64),
     Operator(OperatorType),
     Bracket(BracketInfo),
+    String(String),
     EOF,
 }
 

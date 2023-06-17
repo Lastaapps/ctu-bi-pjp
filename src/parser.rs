@@ -93,7 +93,7 @@ fn parse_scope(parser: &mut Parser) -> Outcome<Scope> {
             Token::Keyword(KT::Const) => 
                 consts.append(&mut parse_constant(parser)?),
 
-            Token::Keyword(KT::Function) => {
+            Token::Keyword(KT::Function) | Token::Keyword(KT::Procedure) => {
                 let (dec, func_opt) = parse_fun_or_dec(parser)?;
                 // declarations.push(decs);
                 if let Some(fun) = func_opt {
@@ -186,7 +186,7 @@ fn parse_literal(parser: &mut Parser) -> Outcome<Value> {
     Ok(match token_info.token {
         Token::Integer(val) => Value::IntValue(val),
         Token::Float(val) => Value::FloatValue(val),
-        // TODO string
+        Token::String(val) => Value::StringValue(val),
         _ => return Err(MilaErr::InvalidToken { modl: String::from("Expected a literal"), act: token_info })
     })
 }
@@ -240,7 +240,12 @@ fn parse_type(parser: &mut Parser) -> Outcome<Type> {
 }
 
 fn parse_fun_or_dec(parser: &mut Parser) -> Outcome<(Declaration, Option<Function>)> {
-    parser.assert_token(Token::Keyword(KT::Function))?;
+    let starting = parser.consume()?;
+    let is_procedure = match starting.token {
+        Token::Keyword(KT::Function) => false,
+        Token::Keyword(KT::Procedure) => true,
+        _ => return Err(MilaErr::UnexpectedToken { exp: Token::Keyword(KT::Function), act: starting }),
+    };
 
     let name = parse_identifier(parser)?;
 
@@ -249,9 +254,14 @@ fn parse_fun_or_dec(parser: &mut Parser) -> Outcome<(Declaration, Option<Functio
     let params = parse_params(parser)?;
 
     parser.assert_token(Token::Bracket(BI{is_square: false, is_open: false}))?;
-    parser.assert_token(Token::Operator(OT::Colon))?;
 
-    let return_type = parse_type(parser)?;
+    let return_type = if !is_procedure {
+        parser.assert_token(Token::Operator(OT::Colon))?;
+        parse_type(parser)?
+    } else {
+        Type::Void
+    };
+
     let declaration = Declaration{name: name.clone(), params: params, return_type: return_type};
 
     if let Token::Keyword(KT::Forward) = parser.peek()?.token {
@@ -516,6 +526,7 @@ fn parse_op4(parser: &mut Parser) -> Outcome<Expr> {
     Ok(lhs)
 }
 
+// add, sub
 fn parse_op3(parser: &mut Parser) -> Outcome<Expr> {
     let mut lhs = parse_op2(parser)?;
     let peeked = parser.peek()?.token;
@@ -536,6 +547,7 @@ fn parse_op3(parser: &mut Parser) -> Outcome<Expr> {
     Ok(lhs)
 }
 
+// unary plus, minus
 fn parse_op2(parser: &mut Parser) -> Outcome<Expr> {
     let peeked = parser.peek()?.token;
     Ok(if Token::Operator(OT::Plus) == peeked {
@@ -550,6 +562,7 @@ fn parse_op2(parser: &mut Parser) -> Outcome<Expr> {
     { parse_op1(parser)? })
 }
 
+// brackets, values
 fn parse_op1(parser: &mut Parser) -> Outcome<Expr> {
     let peeked = parser.peek()?.token;
     if Token::Bracket(BI { is_square: false, is_open: true}) == peeked {

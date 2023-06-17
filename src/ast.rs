@@ -5,6 +5,7 @@ pub enum Type {
     Float,
     String,
     Array(Box<Type>, i64, i64),
+    Void,
 }
 
 #[derive(Debug, PartialEq)]

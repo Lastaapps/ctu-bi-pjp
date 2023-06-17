@@ -12,6 +12,9 @@ pub enum MilaErr {
     UnexpectedChar{c: char, line: u32, col: u32},
     UnexpectedNumberEnd{c: char, line: u32, col: u32},
     NoTokenMatched{line: u32, col: u32},
+    UnclosedString,
+    UnknownEscapeSequence(char),
+
 
     // parser
     UnexpectedToken {
@@ -42,6 +45,10 @@ impl Display for MilaErr {
                 write!(f, "Unexpected number end '{c}' at {line}:{col}"),
             Self::NoTokenMatched { line, col } => 
                 write!(f, "No token matched at {line}:{col}"),
+            Self::UnclosedString => 
+                write!(f, "Unclosed string, add \" at the end"),
+            Self::UnknownEscapeSequence(c) => 
+                write!(f, "Unknown escape sequence: '\\{c}'"),
 
             // parser
             Self::UnexpectedToken { exp: expected, act: actual } => 

@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 either = "1.8.1"
-
+inkwell = { version = "0.2.0", features = ["llvm15-0"] }
+llvm-sys-150 = { package = "llvm-sys", version = "150.1.1", features = [ "prefer-dynamic" ] }

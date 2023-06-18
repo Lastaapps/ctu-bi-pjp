@@ -162,8 +162,8 @@ VAR_ACCESS*        -> [EXPR] VAR_ACCESS*
                    -> 
 
 FUN_CALL           -> name ( FUN_ARGS )
-FUN_ARGS           -> name FUN_ARGS*
-FUN_ARGS*          -> , name FUN_ARGS*
+FUN_ARGS           -> EXPR FUN_ARGS*
+FUN_ARGS*          -> , EXPR FUN_ARGS*
                    -> 
 
 

@@ -388,19 +388,19 @@ impl LexerImpl {
             },
             '(' => {
                 self.progress();
-                Token::Bracket(BracketInfo{is_square: false, is_open: true})
+                Token::Bracket(BracketInfo{sq: false, op: true})
             },
             ')' => {
                 self.progress();
-                Token::Bracket(BracketInfo{is_square: false, is_open: false})
+                Token::Bracket(BracketInfo{sq: false, op: false})
             },
             '[' => {
                 self.progress();
-                Token::Bracket(BracketInfo{is_square: true, is_open: true})
+                Token::Bracket(BracketInfo{sq: true, op: true})
             },
             ']' => {
                 self.progress();
-                Token::Bracket(BracketInfo{is_square: true, is_open: false})
+                Token::Bracket(BracketInfo{sq: true, op: false})
             },
             _ => return Ok(None),
         }))

@@ -116,7 +116,7 @@ fn parse_scope(parser: &mut Parser) -> Outcome<Scope> {
                 functions: functions,
                 main: main.ok_or(MilaErr::MissingMainFunction)?,
             }) },
-            _ => return Err(MilaErr::InvalidToken { modl: String::new(), act: token_info }),
+            _ => return Err(MilaErr::InvalidToken { msg: String::new(), act: token_info }),
         };
     };
 }
@@ -151,7 +151,7 @@ fn parse_var(parser: &mut Parser) -> Outcome<Vec<Variable>> {
                     }
                     break;
                 },
-                _ => return Err(MilaErr::InvalidToken { modl: String::from("Var def error"), act: next_token_info }),
+                _ => return Err(MilaErr::InvalidToken { msg: String::from("Var def error"), act: next_token_info }),
             };
         };
 
@@ -187,7 +187,7 @@ fn parse_literal(parser: &mut Parser) -> Outcome<Value> {
         Token::Integer(val) => Value::IntValue(val),
         Token::Float(val) => Value::FloatValue(val),
         Token::String(val) => Value::StringValue(val),
-        _ => return Err(MilaErr::InvalidToken { modl: String::from("Expected a literal"), act: token_info })
+        _ => return Err(MilaErr::InvalidToken { msg: String::from("Expected a literal"), act: token_info })
     })
 }
 
@@ -208,7 +208,7 @@ fn parse_next_int(parser: &mut Parser) -> Outcome<i64> {
         Token::Integer(val) => Ok(val as i64),
         Token::Operator(OT::Plus) => parse_next_int(parser),
         Token::Operator(OT::Minus) => parse_next_int(parser).map(|x| -1 * x),
-        _ => Err(MilaErr::InvalidToken { modl: String::from("Expected an integer for array indexing"), act: token_info }),
+        _ => Err(MilaErr::InvalidToken { msg: String::from("Expected an integer for array indexing"), act: token_info }),
     }
 }
 
@@ -220,7 +220,7 @@ fn parse_type(parser: &mut Parser) -> Outcome<Type> {
         Token::Keyword(KT::Float) => Type::Float,
 
         Token::Keyword(KT::Array) => {
-            parser.assert_token(Token::Bracket(BI{is_square: true, is_open: true}))?;
+            parser.assert_token(Token::Bracket(BI{sq: true, op: true}))?;
             
             let index_from = parse_next_int(parser)?;
 
@@ -228,14 +228,14 @@ fn parse_type(parser: &mut Parser) -> Outcome<Type> {
 
             let index_to = parse_next_int(parser)?;
 
-            parser.assert_token(Token::Bracket(BI{is_square: true, is_open: false}))?;
+            parser.assert_token(Token::Bracket(BI{sq: true, op: false}))?;
             parser.assert_token(Token::Keyword(KT::Of))?;
 
             let arr_type = parse_type(parser)?;
 
             Type::Array(Box::new(arr_type), index_from, index_to)
         },
-        _ => return Err(MilaErr::InvalidToken { modl: String::from("Expected a literal"), act: token_info })
+        _ => return Err(MilaErr::InvalidToken { msg: String::from("Expected a literal"), act: token_info })
     })
 }
 
@@ -249,11 +249,11 @@ fn parse_fun_or_dec(parser: &mut Parser) -> Outcome<(Declaration, Option<Functio
 
     let name = parse_identifier(parser)?;
 
-    parser.assert_token(Token::Bracket(BI{is_square: false, is_open: true}))?;
+    parser.assert_token(Token::Bracket(BI{sq: false, op: true}))?;
     
     let params = parse_params(parser)?;
 
-    parser.assert_token(Token::Bracket(BI{is_square: false, is_open: false}))?;
+    parser.assert_token(Token::Bracket(BI{sq: false, op: false}))?;
 
     let return_type = if !is_procedure {
         parser.assert_token(Token::Operator(OT::Colon))?;
@@ -280,7 +280,7 @@ fn parse_fun_or_dec(parser: &mut Parser) -> Outcome<(Declaration, Option<Functio
 }
 
 fn parse_params(parser: &mut Parser) -> Outcome<Vec<Variable>>{
-    if let Token::Bracket(BI{is_square: false, is_open: false}) = parser.peek()?.token {
+    if let Token::Bracket(BI{sq: false, op: false}) = parser.peek()?.token {
         return Ok(vec![]);
     }
 
@@ -333,13 +333,12 @@ fn parse_block(parser: &mut Parser) -> Outcome<Statement> {
 fn parse_statement(parser: &mut Parser) -> Outcome<Statement> {
     let next_token = parser.peek()?;
     match next_token.token {
-        // TODO assign
-        // TODO expr
+        Token::Identifier(_) => parse_assign_or_expr(parser),
         Token::Keyword(KT::For) => parse_for(parser),
         Token::Keyword(KT::While) => parse_while(parser),
         Token::Keyword(KT::If) => parse_if(parser),
         Token::Keyword(KT::Exit) => Ok(Statement::Exit),
-        _ => Err(MilaErr::InvalidToken { modl: String::from("Invalid statement start"), act: next_token })
+        _ => Err(MilaErr::InvalidToken { msg: String::from("Invalid statement start"), act: next_token })
     }
 }
 
@@ -351,25 +350,38 @@ fn parse_block_or_statement(parser: &mut Parser) -> Outcome<Statement> {
     }
 }
 
+fn parse_assign_or_expr(parser: &mut Parser) -> Outcome<Statement> {
+    let lhs = parse_expr(parser)?;
+    if Token::Operator(OT::Assign) != parser.peek()?.token {
+        return Ok(Statement::ExprWrapper(lhs));
+    }
+    parser.consume()?;
+    let rhs = parse_expr(parser)?;
+    
+    Ok(Statement::Assign { space: lhs, expr: rhs })
+}
+
 fn parse_for(parser: &mut Parser) -> Outcome<Statement> {
     parser.assert_token(Token::Keyword(KT::For))?;
 
-    // TODO
+    let var_name = parse_identifier(parser)?;
+    parser.assert_token(Token::Operator(OT::Assign))?;
+    let start_index = parse_expr(parser)?;
 
     let dir_token = parser.consume()?;
     let dir = match dir_token.token {
         Token::Operator(OT::To) => true,
         Token::Operator(OT::Downto) => false,
-        _ => return Err(MilaErr::InvalidToken { modl: String::from("For wrong direction"), act: dir_token }),
+        _ => return Err(MilaErr::InvalidToken { msg: String::from("For wrong direction"), act: dir_token }),
     };
 
-    let limit_boundary = parse_expr(parser)?;
+    let to_index = parse_expr(parser)?;
 
     parser.assert_token(Token::Keyword(KT::Do))?;
 
     let code = parse_block_or_statement(parser)?;
 
-    ;todo!()
+    Ok(Statement::For { var_name: var_name, from: start_index, to: to_index, is_to: dir, scope: Box::new(code) })
 }
 
 fn parse_while(parser: &mut Parser) -> Outcome<Statement> {
@@ -565,11 +577,72 @@ fn parse_op2(parser: &mut Parser) -> Outcome<Expr> {
 // brackets, values
 fn parse_op1(parser: &mut Parser) -> Outcome<Expr> {
     let peeked = parser.peek()?.token;
-    if Token::Bracket(BI { is_square: false, is_open: true}) == peeked {
+
+    if Token::Bracket(BI { sq: false, op: true}) == peeked {
         parser.consume()?;
         let expr = parse_expr(parser)?;
-        parser.assert_token(Token::Bracket(BI { is_square: false, is_open: true}))?;
+        parser.assert_token(Token::Bracket(BI { sq: false, op: true}))?;
         return Ok(expr);
     };
-    todo!()
+
+    if let Token::Identifier(_) = peeked {
+        return parse_mem_access(parser)
+    };
+
+    Ok(Expr::Literal(parse_literal(parser)?))
+}
+
+fn parse_mem_access(parser: &mut Parser) -> Outcome<Expr> {
+    let token_into = parser.consume()?;
+    let name = if let Token::Identifier(name) = token_into.token {
+        name
+    } else {
+        return Err(MilaErr::InvalidToken { msg: String::from("Name expected"), act: token_into })
+    };
+
+    // yes, this is lame, I won't be able to call invoke
+    // on functions stored in an array or returned by other functions
+
+    let mut data_source = if let Token::Bracket(BI{sq: false, op: true}) = parser.peek()?.token {
+        let args = parse_fun_args(parser)?;
+        Expr::FunCall { name: name, args: args }
+    } else {
+        Expr::VarAccess(name)
+    };
+
+    while let Token::Bracket(BI{sq: true, op: true}) = parser.peek()?.token {
+        let index = parse_array_brackets(parser)?;
+        data_source = Expr::ArrayAccess(Box::new(data_source), Box::new(index))
+    };
+
+    Ok(data_source)
+}
+
+fn parse_fun_args(parser: &mut Parser) -> Outcome<Vec<Expr>> {
+    let mut args: Vec<Expr> = vec![];
+
+    parser.assert_token(Token::Bracket(BI{sq: false, op: true}))?;
+    
+    loop {
+        let peeked = parser.peek()?;
+        if Token::Bracket(BI{sq: false, op: false}) == peeked.token {
+            parser.consume()?;
+            break;
+        };
+
+        let expr = parse_expr(parser)?;
+        args.push(expr);
+    };
+    
+    Ok(args)
+}
+
+fn parse_array_brackets(parser: &mut Parser) -> Outcome<Expr> {
+    parser.assert_token(Token::Bracket(BI{sq: true, op: true}))?;
+    
+    let expr = parse_expr(parser)?;
+    
+    parser.assert_token(Token::Bracket(BI{sq: true, op: false}))?;
+
+    Ok(expr)
 }

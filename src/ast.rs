@@ -57,19 +57,6 @@ pub struct Function {
     pub scope: Box<Statement>,
 }
 
-#[derive(Debug, PartialEq)]
-pub enum MemorySpace {
-    VarAccess {
-        name: String,
-        var_type: Type,
-    },
-    ArrayAccess {
-        name: String,
-        expr: Box<Expr>,
-        var_type: Type,
-    }
-}
-
 type BExpr = Box<Expr>;
 
 #[derive(Debug, PartialEq)]
@@ -92,9 +79,10 @@ pub enum Expr {
     Literal(Value),
     FunCall{
         name: String,
-        params: Vec<BExpr>,
+        args: Vec<Expr>,
     },
-    MemAccess(Box<MemorySpace>),
+    VarAccess(String),
+    ArrayAccess(BExpr, BExpr),
 }
 
 #[derive(Debug, PartialEq)]
@@ -104,13 +92,13 @@ pub enum Statement {
     },
     ExprWrapper(Expr),
     Assign{
-        space: Box<MemorySpace>,
+        space: Expr,
         expr: Expr,
     },
     For {
         var_name: String,
-        from: i64,
-        to: i64,
+        from: Expr,
+        to: Expr,
         is_to: bool,
         scope: Box<Statement>,
     },

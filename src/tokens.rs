@@ -54,20 +54,20 @@ pub enum OperatorType {
 pub type BI = BracketInfo;
 #[derive(PartialEq, Clone)]
 pub struct BracketInfo {
-    pub is_square: bool,
-    pub is_open: bool,
+    pub sq: bool, // square
+    pub op: bool, // open
 }
 
 impl Display for BracketInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{{s:{}, o:{}}}", self.is_square, self.is_open)
+        write!(f, "{{s:{}, o:{}}}", self.sq, self.op)
     }
 }
 impl Debug for BracketInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BI")
-            .field("sqr", &self.is_square)
-            .field("opn", &self.is_open)
+            .field("sqr", &self.sq)
+            .field("opn", &self.op)
             .finish()
     }
 }

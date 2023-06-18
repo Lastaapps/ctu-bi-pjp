@@ -22,7 +22,7 @@ pub enum MilaErr {
         act: TokenInfo,
     },
     InvalidToken {
-        modl: String,
+        msg: String,
         act: TokenInfo,
     },
     MissingProgramName,
@@ -53,7 +53,7 @@ impl Display for MilaErr {
             // parser
             Self::UnexpectedToken { exp: expected, act: actual } => 
                 write!(f, "Unexpected token: Exp {:?}, Actual {}", expected, actual),
-            Self::InvalidToken { modl: module, act: actual } => 
+            Self::InvalidToken { msg: module, act: actual } => 
                 write!(f, "Unexpected token in module {}, got {}", module, actual),
             Self::MissingProgramName =>
                 write!(f, "Missing the program name"),

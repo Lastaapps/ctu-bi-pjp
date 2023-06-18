@@ -54,7 +54,7 @@ impl Display for MilaErr {
             Self::UnexpectedToken { exp: expected, act: actual } => 
                 write!(f, "Unexpected token: Exp {:?}, Actual {}", expected, actual),
             Self::InvalidToken { msg: module, act: actual } => 
-                write!(f, "Unexpected token in module {}, got {}", module, actual),
+                write!(f, "Unexpected token: {}, got {}", module, actual),
             Self::MissingProgramName =>
                 write!(f, "Missing the program name"),
             Self::MissingMainFunction =>

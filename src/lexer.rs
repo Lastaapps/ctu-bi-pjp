@@ -118,10 +118,10 @@ impl LexerImpl {
 
             "and" => Token::Operator(OperatorType::And),
             "or" => Token::Operator(OperatorType::Or),
-            "xor" => Token::Operator(OperatorType::Xor),
             "downto" => Token::Operator(OperatorType::Downto),
             "to" => Token::Operator(OperatorType::To),
             "mod" => Token::Operator(OperatorType::Mod),
+            "div" => Token::Operator(OperatorType::Div),
             
             "dec" => Token::BuiltIn(BuiltInType::Dec),
             "inc" => Token::BuiltIn(BuiltInType::Inc),
@@ -147,7 +147,7 @@ impl LexerImpl {
                 None => break,
             };
 
-            if next.is_alphabetic() || (!is_first && (next.is_ascii_digit() || next == '.')) {
+            if next.is_alphabetic() || (!is_first && (next.is_ascii_digit() || next == '_')) {
                 buff.push(next);
                 self.progress();
             } else {
@@ -346,6 +346,10 @@ impl LexerImpl {
                         self.progress();
                         Token::Operator(OperatorType::Le)
                     },
+                    '>' => {
+                        self.progress();
+                        Token::Operator(OperatorType::Ne)
+                    },
                     _ => Token::Operator(OperatorType::Lt)
 
                 }
@@ -382,7 +386,7 @@ impl LexerImpl {
                         self.progress();
                         Token::Operator(OperatorType::Ranges)
                     },
-                    _ => return Err(MilaErr::UnexpectedChar { c: sec, line: self.line, col: self.col })
+                    _ => Token::Operator(OperatorType::Dot)
 
                 }
             },

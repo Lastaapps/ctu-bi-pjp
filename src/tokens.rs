@@ -37,7 +37,6 @@ pub enum OperatorType {
     Le,
     And,
     Or,
-    Xor,
     Ranges,
     Downto,
     To,
@@ -46,9 +45,10 @@ pub enum OperatorType {
     Mul,
     Div,
     Mod,
-    Comma,
-    Semicolon,
-    Colon,
+    Comma, // ,
+    Semicolon, // ;
+    Colon, // :
+    Dot, // .
 }
 
 pub type BI = BracketInfo;

@@ -19,12 +19,20 @@ enum AppMode {
     File(Vec<String>),
 }
 
+fn modify_buffer(buff: &mut String) {
+    // added so that every operation does not have to check if the end is reached
+    // and can freely ask for the next char
+    buff.push(' ');
+}
+
 fn stdin_iter() -> Outcome<LexerItr> {
     let mut buff = String::new();
 
     std::io::stdin()
     .read_to_string(&mut buff)
     .map_err(|err| MilaErr::ReadStdInFailed(err.to_string()))?;
+
+    modify_buffer(&mut buff);
 
     let itr = buff.chars().collect::<Vec<_>>().into_iter();
     let peekable = itr.peekable();
@@ -46,6 +54,8 @@ fn file_iter(names: Vec<String>) -> Outcome<LexerItr> {
         file.read_to_string(&mut buff)
             .map_err(|err| {MilaErr::ReadFileFailed(err.to_string(), name)})?;
     };
+
+    modify_buffer(&mut buff);
     
     let itr = buff.chars().collect::<Vec<_>>().into_iter();
     let peekable = itr.peekable();

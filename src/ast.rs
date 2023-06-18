@@ -1,3 +1,5 @@
+use crate::tokens::BuiltInType;
+
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Type {
@@ -74,11 +76,14 @@ pub enum Expr {
     Ne (BExpr, BExpr),
     And(BExpr, BExpr),
     Or (BExpr, BExpr),
-    Xor(BExpr, BExpr),
 
     Literal(Value),
     FunCall{
         name: String,
+        args: Vec<Expr>,
+    },
+    BuiltIn{
+        name: BuiltInType,
         args: Vec<Expr>,
     },
     VarAccess(String),

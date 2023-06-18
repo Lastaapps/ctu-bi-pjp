@@ -1,7 +1,5 @@
 use std::{vec, iter::Peekable};
 
-use either::Either;
-
 use crate::{ast::{Program, Statement, Scope, Value, Constant, Declaration, Function, Variable, Type, Expr}, lexer::Lexer, base::Outcome, tokens::{TokenInfo, Token, KeywordType, OperatorType, KT, OT, BI}, errors::MilaErr};
 
 struct LexerIterator {
@@ -116,7 +114,7 @@ fn parse_scope(parser: &mut Parser) -> Outcome<Scope> {
                 functions: functions,
                 main: main.ok_or(MilaErr::MissingMainFunction)?,
             }) },
-            _ => return Err(MilaErr::InvalidToken { msg: String::new(), act: token_info }),
+            _ => return Err(MilaErr::InvalidToken { msg: String::from("Failed to parse the app scope"), act: token_info }),
         };
     };
 }
@@ -173,6 +171,8 @@ fn parse_constant(parser: &mut Parser) -> Outcome<Vec<Constant>> {
 
         let parsed_literal = parse_literal(parser)?;
         consts.push((name, parsed_literal));
+
+        parser.assert_token(Token::Operator(OT::Semicolon))?;
 
         if let Token::Identifier(_) = parser.peek()?.token {
         } else { break; };
@@ -261,6 +261,7 @@ fn parse_fun_or_dec(parser: &mut Parser) -> Outcome<(Declaration, Option<Functio
     } else {
         Type::Void
     };
+    parser.assert_token(Token::Operator(OT::Semicolon))?;
 
     let declaration = Declaration{name: name.clone(), params: params, return_type: return_type};
 
@@ -275,6 +276,7 @@ fn parse_fun_or_dec(parser: &mut Parser) -> Outcome<(Declaration, Option<Functio
     } else { vec![] };
 
     let code = parse_block(parser)?;
+    parser.assert_token(Token::Operator(OT::Semicolon))?;
     
     Ok((declaration, Some(Function { name: name, vars: vars, scope: Box::new(code) })))
 }
@@ -303,7 +305,7 @@ fn parse_params(parser: &mut Parser) -> Outcome<Vec<Variable>>{
 
 fn parse_main(parser: &mut Parser) -> Outcome<Statement> {
     let code = parse_block(parser)?;
-    parser.assert_token(Token::Operator(OT::Comma))?;
+    parser.assert_token(Token::Operator(OT::Dot))?;
     Ok(code)
 }
 
@@ -333,12 +335,15 @@ fn parse_block(parser: &mut Parser) -> Outcome<Statement> {
 fn parse_statement(parser: &mut Parser) -> Outcome<Statement> {
     let next_token = parser.peek()?;
     match next_token.token {
-        Token::Identifier(_) => parse_assign_or_expr(parser),
         Token::Keyword(KT::For) => parse_for(parser),
         Token::Keyword(KT::While) => parse_while(parser),
         Token::Keyword(KT::If) => parse_if(parser),
-        Token::Keyword(KT::Exit) => Ok(Statement::Exit),
-        _ => Err(MilaErr::InvalidToken { msg: String::from("Invalid statement start"), act: next_token })
+        Token::Keyword(KT::Exit) => {
+            parser.consume()?;
+            Ok(Statement::Exit)
+        },
+        _ => parse_assign_or_expr(parser),
+        // _ => Err(MilaErr::InvalidToken { msg: String::from("Invalid statement start"), act: next_token })
     }
 }
 
@@ -434,28 +439,26 @@ fn parse_expr(parser: &mut Parser) -> Outcome<Expr> {
     // };
 }
 
-// and
+// or
 fn parse_op8(parser: &mut Parser) -> Outcome<Expr> {
     let mut lhs = parse_op7(parser)?;
-    let peeked = parser.peek()?.token;
 
-    while Token::Operator(OT::And) == peeked {
+    while Token::Operator(OT::Or) == parser.peek()?.token {
         parser.consume()?;
         let rhs = parse_op7(parser)?;
-        lhs = Expr::And(Box::new(lhs), Box::new(rhs));
+        lhs = Expr::Or(Box::new(lhs), Box::new(rhs));
     };
     Ok(lhs)
 }
 
-// or
+// and
 fn parse_op7(parser: &mut Parser) -> Outcome<Expr> {
     let mut lhs = parse_op6(parser)?;
-    let peeked = parser.peek()?.token;
 
-    while Token::Operator(OT::Or) == peeked {
+    while Token::Operator(OT::And) == parser.peek()?.token {
         parser.consume()?;
         let rhs = parse_op6(parser)?;
-        lhs = Expr::Or(Box::new(lhs), Box::new(rhs));
+        lhs = Expr::And(Box::new(lhs), Box::new(rhs));
     };
     Ok(lhs)
 }
@@ -463,9 +466,9 @@ fn parse_op7(parser: &mut Parser) -> Outcome<Expr> {
 // eq, ne
 fn parse_op6(parser: &mut Parser) -> Outcome<Expr> {
     let mut lhs = parse_op5(parser)?;
-    let peeked = parser.peek()?.token;
 
     loop {
+        let peeked = parser.peek()?.token;
         if Token::Operator(OT::Eq) == peeked {
             parser.consume()?;
             let rhs = parse_op5(parser)?;
@@ -484,9 +487,9 @@ fn parse_op6(parser: &mut Parser) -> Outcome<Expr> {
 // gt, ge, lt, le
 fn parse_op5(parser: &mut Parser) -> Outcome<Expr> {
     let mut lhs = parse_op4(parser)?;
-    let peeked = parser.peek()?.token;
 
     loop {
+        let peeked = parser.peek()?.token;
         if Token::Operator(OT::Gt) == peeked {
             parser.consume()?;
             let rhs = parse_op4(parser)?;
@@ -515,23 +518,18 @@ fn parse_op5(parser: &mut Parser) -> Outcome<Expr> {
 // mul, div, mod
 fn parse_op4(parser: &mut Parser) -> Outcome<Expr> {
     let mut lhs = parse_op3(parser)?;
-    let peeked = parser.peek()?.token;
 
     loop {
-        if Token::Operator(OT::Mul) == peeked {
+        let peeked = parser.peek()?.token;
+        if Token::Operator(OT::Plus) == peeked {
             parser.consume()?;
             let rhs = parse_op3(parser)?;
-            lhs = Expr::Mul(Box::new(lhs), Box::new(rhs));
+            lhs = Expr::Add(Box::new(lhs), Box::new(rhs));
         } else 
-        if Token::Operator(OT::Div) == peeked {
+        if Token::Operator(OT::Minus) == peeked {
             parser.consume()?;
             let rhs = parse_op3(parser)?;
-            lhs = Expr::Div(Box::new(lhs), Box::new(rhs));
-        } else 
-        if Token::Operator(OT::Mod) == peeked {
-            parser.consume()?;
-            let rhs = parse_op3(parser)?;
-            lhs = Expr::Mod(Box::new(lhs), Box::new(rhs));
+            lhs = Expr::Sub(Box::new(lhs), Box::new(rhs));
         } else 
         { break; }
     };
@@ -541,18 +539,23 @@ fn parse_op4(parser: &mut Parser) -> Outcome<Expr> {
 // add, sub
 fn parse_op3(parser: &mut Parser) -> Outcome<Expr> {
     let mut lhs = parse_op2(parser)?;
-    let peeked = parser.peek()?.token;
 
     loop {
-        if Token::Operator(OT::Plus) == peeked {
+        let peeked = parser.peek()?.token;
+        if Token::Operator(OT::Mul) == peeked {
             parser.consume()?;
             let rhs = parse_op2(parser)?;
-            lhs = Expr::Add(Box::new(lhs), Box::new(rhs));
+            lhs = Expr::Mul(Box::new(lhs), Box::new(rhs));
         } else 
-        if Token::Operator(OT::Minus) == peeked {
+        if Token::Operator(OT::Div) == peeked {
             parser.consume()?;
             let rhs = parse_op2(parser)?;
-            lhs = Expr::Sub(Box::new(lhs), Box::new(rhs));
+            lhs = Expr::Div(Box::new(lhs), Box::new(rhs));
+        } else 
+        if Token::Operator(OT::Mod) == peeked {
+            parser.consume()?;
+            let rhs = parse_op2(parser)?;
+            lhs = Expr::Mod(Box::new(lhs), Box::new(rhs));
         } else 
         { break; }
     };
@@ -581,12 +584,15 @@ fn parse_op1(parser: &mut Parser) -> Outcome<Expr> {
     if Token::Bracket(BI { sq: false, op: true}) == peeked {
         parser.consume()?;
         let expr = parse_expr(parser)?;
-        parser.assert_token(Token::Bracket(BI { sq: false, op: true}))?;
+        parser.assert_token(Token::Bracket(BI { sq: false, op: false}))?;
         return Ok(expr);
     };
 
     if let Token::Identifier(_) = peeked {
         return parse_mem_access(parser)
+    };
+    if let Token::BuiltIn(_) = peeked {
+        return parse_built_in(parser)
     };
 
     Ok(Expr::Literal(parse_literal(parser)?))
@@ -618,17 +624,53 @@ fn parse_mem_access(parser: &mut Parser) -> Outcome<Expr> {
     Ok(data_source)
 }
 
+// yeah, code duplication, I don't care for these
+// badly specified functions
+fn parse_built_in(parser: &mut Parser) -> Outcome<Expr> {
+    let token_into = parser.consume()?;
+    let name = if let Token::BuiltIn(name) = token_into.token {
+        name
+    } else {
+        return Err(MilaErr::InvalidToken { msg: String::from("Built in expected"), act: token_into })
+    };
+
+    // yes, this is lame, I won't be able to call invoke
+    // on functions stored in an array or returned by other functions
+
+    let peeked = parser.peek()?;
+    let mut data_source = if let Token::Bracket(BI{sq: false, op: true}) = peeked.token {
+        let args = parse_fun_args(parser)?;
+        Expr::BuiltIn { name: name, args: args }
+    } else {
+        return Err(MilaErr::InvalidToken { msg: String::from("Built in args expected"), act: peeked })
+    };
+
+    while let Token::Bracket(BI{sq: true, op: true}) = parser.peek()?.token {
+        let index = parse_array_brackets(parser)?;
+        data_source = Expr::ArrayAccess(Box::new(data_source), Box::new(index))
+    };
+
+    Ok(data_source)
+}
+
 fn parse_fun_args(parser: &mut Parser) -> Outcome<Vec<Expr>> {
     let mut args: Vec<Expr> = vec![];
 
     parser.assert_token(Token::Bracket(BI{sq: false, op: true}))?;
     
+    let mut is_first = true;
     loop {
         let peeked = parser.peek()?;
         if Token::Bracket(BI{sq: false, op: false}) == peeked.token {
             parser.consume()?;
             break;
         };
+
+        if !is_first {
+            parser.assert_token(Token::Operator(OT::Comma))?;
+        } else {
+            is_first = false;
+        }
 
         let expr = parse_expr(parser)?;
         args.push(expr);

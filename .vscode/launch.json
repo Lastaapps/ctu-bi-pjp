@@ -19,7 +19,7 @@
                     "kind": "bin"
                 }
             },
-            "args": [],
+            "args": ["samples/factorization.mila"],
             "cwd": "${workspaceFolder}"
         },
         {

@@ -33,7 +33,6 @@ div
 not
 and
 or
-xor
 
 // keywords in for loop
 to
@@ -128,10 +127,10 @@ ELSE               -> else BORS
 
 EXPR               -> OP_BIN8
 OP_BIN8            -> OP_BIN7 OP_BIN8*
-OP_BIN8*           -> and OP_BIN8
+OP_BIN8*           -> or OP_BIN8
                    -> 
 OP_BIN7            -> OP_BIN6 OP_BIN7*
-OP_BIN7*           -> or OP_BIN7
+OP_BIN7*           -> and OP_BIN7
                    -> 
 OP_BIN6            -> OP_BIN5 OP_BIN6*
 OP_BIN6*           -> eq OP_BIN6
@@ -140,10 +139,10 @@ OP_BIN5            -> OP_BIN4 OP_BIN5*
 OP_BIN5*           -> < OP_BIN5
                    -> 
 OP_BIN4            -> OP_BIN3 OP_BIN4*
-OP_BIN4*           -> * OP_BIN4
+OP_BIN4*           -> + OP_BIN4
                    -> 
 OP_BIN3            -> OP_BIN2 OP_BIN3*
-OP_BIN3*           -> + OP_BIN3
+OP_BIN3*           -> * OP_BIN3
                    -> 
 OP_BIN2            -> + OP_BIN2
                    -> - OP_BIN2

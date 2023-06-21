@@ -201,7 +201,7 @@ impl<'a> LLVM<'a> {
             Statement::Assign { space, expr } => {
                 let value = self.compile_expr(expr, symbols)?;
                 let space = self.get_mem_space(space, symbols, true)?;
-                self.bld.build_store(space, value)
+                self.bld.build_store(space.0, value)
             }
             Statement::For {
                 var_name,
@@ -309,7 +309,7 @@ impl<'a> LLVM<'a> {
                     .build_load(self.to_llvm(&symbol.kind)?, symbol.ptr, name)
             }
             Expr::ArrayAccess(store, _) => {
-                let arr_ptr = self.get_mem_space(expr, symbols, false)?;
+                let arr_ptr = self.get_mem_space(expr, symbols, false)?.0;
                 self.bld
                     .build_load(arr_ptr.get_type(), arr_ptr, "array read")
             },
@@ -322,12 +322,12 @@ impl<'a> LLVM<'a> {
         expr: &Expr,
         symbols: &'a Symbols<'a>,
         is_write: bool,
-    ) -> Outcome<PointerValue<'a>> {
+    ) -> Outcome<(PointerValue<'a>, Kind)> {
         Ok(match expr {
             // Expr::FunCall { name, args } => todo!(),
             Expr::VarAccess(name) => {
                 let symbol = LLVM::find_in_table(symbols, name, is_write)?;
-                symbol.ptr
+                (symbol.ptr, symbol.kind.clone())
             }
             Expr::ArrayAccess(store, index) => {
                 let index = self.compile_expr(index, symbols)?;
@@ -337,16 +337,32 @@ impl<'a> LLVM<'a> {
                     return Err(MilaErr::CannotIndexWithNonInteger);
                 };
 
-                let dest = self.get_mem_space(store, symbols, is_write)?;
+                let (dest, kind) = self.get_mem_space(store, symbols, is_write)?;
+
+                let (subkind, index) = match kind {
+                    Kind::Array(subkind, from, _) => {
+                        let offset = self.ctx.i64_type().const_int(from.abs() as u64, true);
+                        let signed = if from < 0 {
+                            offset
+                        } else {
+                            let zero = self.ctx.i64_type().const_zero();
+                            self.bld.build_int_sub(zero, offset, "inverse index")
+                        };
+                        let result = self.bld.build_int_add(index, signed, "update index");
+                        (subkind, result)
+                    },
+                    _ => return Err(MilaErr::CannotUseIndexingOnNonArrayType { code: 1 })
+                };
+
                 let array = if dest.as_basic_value_enum().is_array_value() {
                     dest.as_basic_value_enum().into_array_value()
                 } else {
-                    return Err(MilaErr::CannotUseIndexingOnNonArrayType);
+                    return Err(MilaErr::CannotUseIndexingOnNonArrayType { code: 2 });
                 };
 
-                unsafe {
+                (unsafe {
                     self.bld.build_gep(array.get_type(), dest, &[index], "get, array, scary")
-                }
+                }, *subkind)
             }
             _ => return Err(MilaErr::AssignNotSupported(expr.clone())),
         })

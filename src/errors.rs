@@ -35,7 +35,7 @@ pub enum MilaErr {
     WrongCast,
     AssignNotSupported(Expr),
     CannotIndexWithNonInteger,
-    CannotUseIndexingOnNonArrayType,
+    CannotUseIndexingOnNonArrayType{code: u8},
     VarNotFound(String),
     CannotChangeConstantVariable(String),
 }
@@ -84,8 +84,8 @@ impl Display for MilaErr {
                 write!(f, "Assign to {:?} not supported", expr),
             Self::CannotIndexWithNonInteger =>
                 write!(f, "Cannot uses non integer for indexing"),
-            Self::CannotUseIndexingOnNonArrayType =>
-                write!(f, "Cannot use index on non-array type"),
+            Self::CannotUseIndexingOnNonArrayType { code } =>
+                write!(f, "Cannot use index on non-array type, code: {code}"),
             Self::VarNotFound(name) =>
                 write!(f, "Variable with name {name} not found"),
             Self::CannotChangeConstantVariable(name) =>

@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::tokens::{Token, TokenInfo};
+use crate::{tokens::{Token, TokenInfo}, ast::Expr};
 
 
 #[derive(Clone)]
@@ -27,6 +27,17 @@ pub enum MilaErr {
     },
     MissingProgramName,
     MissingMainFunction,
+    InvalidArrayRange{ from: i64, to: i64 },
+
+    // llvm
+    DuplicateGlobal(String),
+    VoidAsVariable,
+    WrongCast,
+    AssignNotSupported(Expr),
+    CannotIndexWithNonInteger,
+    CannotUseIndexingOnNonArrayType,
+    VarNotFound(String),
+    CannotChangeConstantVariable(String),
 }
 
 impl Display for MilaErr {
@@ -59,6 +70,26 @@ impl Display for MilaErr {
                 write!(f, "Missing the program name"),
             Self::MissingMainFunction =>
                 write!(f, "Missing the main function"),
+            Self::InvalidArrayRange { from, to } =>
+                write!(f, "Invalid array range: {from} .. {to}"),
+
+            // llvm
+            Self::DuplicateGlobal(name) =>
+                write!(f, "Duplicate global variable or constant: {name}"),
+            Self::VoidAsVariable =>
+                write!(f, "Variable cannot be of the type: void"),
+            Self::WrongCast =>
+                write!(f, "Wrong cast, somewhere..."),
+            Self::AssignNotSupported(expr) =>
+                write!(f, "Assign to {:?} not supported", expr),
+            Self::CannotIndexWithNonInteger =>
+                write!(f, "Cannot uses non integer for indexing"),
+            Self::CannotUseIndexingOnNonArrayType =>
+                write!(f, "Cannot use index on non-array type"),
+            Self::VarNotFound(name) =>
+                write!(f, "Variable with name {name} not found"),
+            Self::CannotChangeConstantVariable(name) =>
+                write!(f, "Constant {name} cannot be changed"),
         }
     }
 }

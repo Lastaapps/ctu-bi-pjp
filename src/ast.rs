@@ -2,15 +2,15 @@ use crate::tokens::BuiltInType;
 
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Type {
+pub enum Kind {
     Integer,
     Float,
     String,
-    Array(Box<Type>, i64, i64),
+    Array(Box<Kind>, i64, i64),
     Void,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Value {
     IntValue(u64),
     FloatValue(f64),
@@ -18,11 +18,11 @@ pub enum Value {
 }
 
 impl Value {
-    pub fn to_type(self) -> Type {
+    pub fn to_type(&self) -> Kind {
         match self {
-            Value::IntValue(_) => Type::Integer,
-            Value::FloatValue(_) => Type::Float,
-            Value::StringValue(_) => Type::String,
+            Value::IntValue(_) => Kind::Integer,
+            Value::FloatValue(_) => Kind::Float,
+            Value::StringValue(_) => Kind::String,
         }
     }
 }
@@ -42,26 +42,35 @@ pub struct Scope {
     pub main: Statement,
 }
 
-pub type Variable = (String, Type);
-pub type Constant = (String, Value);
+#[derive(Debug, PartialEq)]
+pub struct Variable{
+    pub name: String,
+    pub kind: Kind,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Constant {
+    pub name: String,
+    pub val: Value,
+}
 
 #[derive(Debug, PartialEq)]
 pub struct Declaration {
     pub name: String,
-    pub params: Vec<(String, Type)>,
-    pub return_type: Type,
+    pub params: Vec<Variable>,
+    pub return_type: Kind,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct Function {
     pub name: String,
-    pub vars: Vec<(String, Type)>,
+    pub vars: Vec<Variable>,
     pub scope: Box<Statement>,
 }
 
 type BExpr = Box<Expr>;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
     Add(BExpr, BExpr),
     Sub(BExpr, BExpr),

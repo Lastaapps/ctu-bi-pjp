@@ -1,6 +1,6 @@
 use std::{vec, iter::Peekable};
 
-use crate::{ast::{Program, Statement, Scope, Value, Constant, Declaration, Function, Variable, Type, Expr}, lexer::Lexer, base::Outcome, tokens::{TokenInfo, Token, KeywordType, OperatorType, KT, OT, BI}, errors::MilaErr};
+use crate::{ast::{Program, Statement, Scope, Value, Constant, Declaration, Function, Variable, Kind, Expr}, lexer::Lexer, base::Outcome, tokens::{TokenInfo, Token, KeywordType, OperatorType, KT, OT, BI}, errors::MilaErr};
 
 struct LexerIterator {
     lexer: Box<dyn Lexer>,
@@ -138,9 +138,9 @@ fn parse_var(parser: &mut Parser) -> Outcome<Vec<Variable>> {
                 Token::Operator(OT::Comma) => continue,
 
                 Token::Operator(OT::Colon) => {
-                    let val_type = parse_type(parser)?;
+                    let val_kind = parse_type(parser)?;
                     for name in names {
-                        vars.push((name, val_type.clone()));
+                        vars.push(Variable{ name: name, kind: val_kind.clone()});
                     };
 
                     let semicolon_info = parser.consume()?;
@@ -170,7 +170,7 @@ fn parse_constant(parser: &mut Parser) -> Outcome<Vec<Constant>> {
         parser.assert_token(Token::Operator(OT::Eq))?;
 
         let parsed_literal = parse_literal(parser)?;
-        consts.push((name, parsed_literal));
+        consts.push(Constant { name: name, val: parsed_literal });
 
         parser.assert_token(Token::Operator(OT::Semicolon))?;
 
@@ -212,12 +212,12 @@ fn parse_next_int(parser: &mut Parser) -> Outcome<i64> {
     }
 }
 
-fn parse_type(parser: &mut Parser) -> Outcome<Type> {
+fn parse_type(parser: &mut Parser) -> Outcome<Kind> {
     let token_info = parser.consume()?;
     Ok(match token_info.token {
-        Token::Keyword(KT::Integer) => Type::Integer,
+        Token::Keyword(KT::Integer) => Kind::Integer,
 
-        Token::Keyword(KT::Float) => Type::Float,
+        Token::Keyword(KT::Float) => Kind::Float,
 
         Token::Keyword(KT::Array) => {
             parser.assert_token(Token::Bracket(BI{sq: true, op: true}))?;
@@ -233,7 +233,10 @@ fn parse_type(parser: &mut Parser) -> Outcome<Type> {
 
             let arr_type = parse_type(parser)?;
 
-            Type::Array(Box::new(arr_type), index_from, index_to)
+            if index_from > index_to {
+                return Err(MilaErr::InvalidArrayRange { from: index_from, to: index_to })
+            }
+            Kind::Array(Box::new(arr_type), index_from, index_to)
         },
         _ => return Err(MilaErr::InvalidToken { msg: String::from("Expected a literal"), act: token_info })
     })
@@ -259,7 +262,7 @@ fn parse_fun_or_dec(parser: &mut Parser) -> Outcome<(Declaration, Option<Functio
         parser.assert_token(Token::Operator(OT::Colon))?;
         parse_type(parser)?
     } else {
-        Type::Void
+        Kind::Void
     };
     parser.assert_token(Token::Operator(OT::Semicolon))?;
 
@@ -292,9 +295,9 @@ fn parse_params(parser: &mut Parser) -> Outcome<Vec<Variable>>{
 
         parser.assert_token(Token::Operator(OT::Colon))?;
 
-        let param_type = parse_type(parser)?;
+        let kind = parse_type(parser)?;
 
-        params.push((name, param_type));
+        params.push(Variable { name: name, kind: kind });
 
         if let Token::Operator(OT::Semicolon) = parser.peek()?.token {
             parser.consume()?;

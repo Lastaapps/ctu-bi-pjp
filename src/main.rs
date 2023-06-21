@@ -2,6 +2,7 @@ use std::{process, env, io::Read, path::Path, fs::File};
 
 use base::Outcome;
 use errors::MilaErr;
+use inkwell::context::Context;
 use lexer::{Lexer, LexerItr};
 use parser::Parser;
 
@@ -11,6 +12,7 @@ mod ast;
 mod base;
 mod errors;
 mod lexer;
+mod llvm;
 mod parser;
 mod tokens;
 
@@ -69,14 +71,14 @@ fn run_mila(mode: AppMode) -> Outcome<()> {
     }?;
     let mut lexer = <dyn Lexer>::factory(iter)?;
 
-    // loop {
-    //     let token = lexer.next_token()?;
-    //     println!("{token}");
-    //     if token.token == Token::EOF {
-    //         break;
-    //     };
-    // };
-    // return Ok(());
+    loop {
+        let token = lexer.next_token()?;
+        println!("{token}");
+        if token.token == Token::EOF {
+            break;
+        };
+    };
+    return Ok(());
 
     let mut parser = Parser::factory(lexer);
     let ast = parser.parse_ast()?;

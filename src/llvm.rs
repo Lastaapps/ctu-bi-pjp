@@ -9,7 +9,7 @@ use inkwell::{
         AsValueRef, BasicValue, BasicValueEnum, FloatValue, GlobalValue, InstructionOpcode,
         InstructionValue, IntValue, PointerValue,
     },
-    AddressSpace,
+    AddressSpace, IntPredicate, FloatPredicate
 };
 
 use crate::{
@@ -281,18 +281,153 @@ impl<'a> LLVM<'a> {
                     }
                 }
             }
-            Expr::Sub(_, _) => todo!(),
-            Expr::Mul(_, _) => todo!(),
-            Expr::Div(_, _) => todo!(),
-            Expr::Mod(_, _) => todo!(),
-            Expr::Gt(_, _) => todo!(),
-            Expr::Ge(_, _) => todo!(),
-            Expr::Lt(_, _) => todo!(),
-            Expr::Le(_, _) => todo!(),
-            Expr::Eq(_, _) => todo!(),
-            Expr::Ne(_, _) => todo!(),
-            Expr::And(_, _) => todo!(),
-            Expr::Or(_, _) => todo!(),
+            Expr::Sub(lhs, rhs) => {
+                let lhs = self.compile_expr(lhs, symbols)?;
+                let rhs = self.compile_expr(rhs, symbols)?;
+
+                match self.cast_to_same(lhs, rhs, "sub")? {
+                    ValuePair::IntPair(lhs, rhs) => {
+                        self.bld.build_int_sub(lhs, rhs, "int").into()
+                    }
+                    ValuePair::FloatPair(lhs, rhs) => {
+                        self.bld.build_float_sub(lhs, rhs, "float").into()
+                    }
+                }
+            }
+            Expr::Mul(lhs, rhs) => {
+                let lhs = self.compile_expr(lhs, symbols)?;
+                let rhs = self.compile_expr(rhs, symbols)?;
+
+                match self.cast_to_same(lhs, rhs, "mul")? {
+                    ValuePair::IntPair(lhs, rhs) => {
+                        self.bld.build_int_mul(lhs, rhs, "mul_int").into()
+                    }
+                    ValuePair::FloatPair(lhs, rhs) => {
+                        self.bld.build_float_mul(lhs, rhs, "mul_float").into()
+                    }
+                }
+            }
+            Expr::Div(lhs, rhs) => {
+                let lhs = self.compile_expr(lhs, symbols)?;
+                let rhs = self.compile_expr(rhs, symbols)?;
+
+                match self.cast_to_same(lhs, rhs, "div")? {
+                    ValuePair::IntPair(lhs, rhs) => {
+                        self.bld.build_int_signed_div(lhs, rhs, "div_int").into()
+                    }
+                    ValuePair::FloatPair(lhs, rhs) => {
+                        self.bld.build_float_div(lhs, rhs, "div_float").into()
+                    }
+                }
+            }
+            Expr::Mod(lhs, rhs) => {
+                let lhs = self.compile_expr(lhs, symbols)?;
+                let rhs = self.compile_expr(rhs, symbols)?;
+
+                match self.cast_to_same(lhs, rhs, "mod")? {
+                    ValuePair::IntPair(lhs, rhs) => {
+                        self.bld.build_int_signed_rem(lhs, rhs, "mod_int").into()
+                    }
+                    ValuePair::FloatPair(lhs, rhs) => {
+                        self.bld.build_float_rem(lhs, rhs, "mod_float").into()
+                    }
+                }
+            }
+            // TODO all the bellow
+            Expr::Gt(lhs, rhs) => {
+                let lhs = self.compile_expr(lhs, symbols)?;
+                let rhs = self.compile_expr(rhs, symbols)?;
+
+                match self.cast_to_same(lhs, rhs, "gt")? {
+                    ValuePair::IntPair(lhs, rhs) => {
+                        self.bld.build_int_compare(IntPredicate::SGT, lhs, rhs, "gt_int").into()
+                    }
+                    ValuePair::FloatPair(lhs, rhs) => {
+                        self.bld.build_float_compare(FloatPredicate::UGT, lhs, rhs, "gt_float").into()
+                    }
+                }
+            }
+            Expr::Ge(lhs, rhs) => {
+                let lhs = self.compile_expr(lhs, symbols)?;
+                let rhs = self.compile_expr(rhs, symbols)?;
+
+                match self.cast_to_same(lhs, rhs, "ge")? {
+                    ValuePair::IntPair(lhs, rhs) => {
+                        self.bld.build_int_compare(IntPredicate::SGE, lhs, rhs, "ge_int").into()
+                    }
+                    ValuePair::FloatPair(lhs, rhs) => {
+                        self.bld.build_float_compare(FloatPredicate::UGE, lhs, rhs, "ge_float").into()
+                    }
+                }
+            }
+            Expr::Lt(lhs, rhs) => {
+                let lhs = self.compile_expr(lhs, symbols)?;
+                let rhs = self.compile_expr(rhs, symbols)?;
+
+                match self.cast_to_same(lhs, rhs, "lt")? {
+                    ValuePair::IntPair(lhs, rhs) => {
+                        self.bld.build_int_compare(IntPredicate::SLT, lhs, rhs, "lt_int").into()
+                    }
+                    ValuePair::FloatPair(lhs, rhs) => {
+                        self.bld.build_float_compare(FloatPredicate::ULT, lhs, rhs, "lt_float").into()
+                    }
+                }
+            }
+            Expr::Le(lhs, rhs) => {
+                let lhs = self.compile_expr(lhs, symbols)?;
+                let rhs = self.compile_expr(rhs, symbols)?;
+
+                match self.cast_to_same(lhs, rhs, "le")? {
+                    ValuePair::IntPair(lhs, rhs) => {
+                        self.bld.build_int_compare(IntPredicate::SLE, lhs, rhs, "le_int").into()
+                    }
+                    ValuePair::FloatPair(lhs, rhs) => {
+                        self.bld.build_float_compare(FloatPredicate::ULE, lhs, rhs, "le_float").into()
+                    }
+                }
+            }
+            Expr::Eq(lhs, rhs) => {
+                let lhs = self.compile_expr(lhs, symbols)?;
+                let rhs = self.compile_expr(rhs, symbols)?;
+
+                match self.cast_to_same(lhs, rhs, "eq")? {
+                    ValuePair::IntPair(lhs, rhs) => {
+                        self.bld.build_int_compare(IntPredicate::EQ, lhs, rhs, "eq_int").into()
+                    }
+                    ValuePair::FloatPair(lhs, rhs) => {
+                        self.bld.build_float_compare(FloatPredicate::UEQ, lhs, rhs, "eq_float").into()
+                    }
+                }
+            }
+            Expr::Ne(lhs, rhs) => {
+                let lhs = self.compile_expr(lhs, symbols)?;
+                let rhs = self.compile_expr(rhs, symbols)?;
+
+                match self.cast_to_same(lhs, rhs, "ne")? {
+                    ValuePair::IntPair(lhs, rhs) => {
+                        self.bld.build_int_compare(IntPredicate::NE, lhs, rhs, "ne_int").into()
+                    }
+                    ValuePair::FloatPair(lhs, rhs) => {
+                        self.bld.build_float_compare(FloatPredicate::UNE, lhs, rhs, "ne_float").into()
+                    }
+                }
+            }
+            Expr::And(lhs, rhs) => {
+                let lhs = self.compile_expr(lhs, symbols)?;
+                let rhs = self.compile_expr(rhs, symbols)?;
+                if !lhs.is_int_value() || !rhs.is_int_value() {
+                    return Err(MilaErr::LogicOnIntOnly)
+                }
+                self.bld.build_and(lhs.into_int_value(), rhs.into_int_value(), "and").into()
+            }
+            Expr::Or(lhs, rhs) => {
+                let lhs = self.compile_expr(lhs, symbols)?;
+                let rhs = self.compile_expr(rhs, symbols)?;
+                if !lhs.is_int_value() || !rhs.is_int_value() {
+                    return Err(MilaErr::LogicOnIntOnly)
+                }
+                self.bld.build_or(lhs.into_int_value(), rhs.into_int_value(), "and").into()
+            }
             Expr::Literal(value) => match value {
                 Value::IntValue(val) => self.ctx.i64_type().const_int(*val, true).into(),
                 Value::FloatValue(val) => self.ctx.f64_type().const_float(*val).into(),
@@ -312,8 +447,8 @@ impl<'a> LLVM<'a> {
                 let arr_ptr = self.get_mem_space(expr, symbols, false)?.0;
                 self.bld
                     .build_load(arr_ptr.get_type(), arr_ptr, "array read")
-            },
-            _ => panic!("")
+            }
+            _ => panic!(""),
         })
     }
 
@@ -350,8 +485,8 @@ impl<'a> LLVM<'a> {
                         };
                         let result = self.bld.build_int_add(index, signed, "update index");
                         (subkind, result)
-                    },
-                    _ => return Err(MilaErr::CannotUseIndexingOnNonArrayType { code: 1 })
+                    }
+                    _ => return Err(MilaErr::CannotUseIndexingOnNonArrayType { code: 1 }),
                 };
 
                 let array = if dest.as_basic_value_enum().is_array_value() {
@@ -360,9 +495,13 @@ impl<'a> LLVM<'a> {
                     return Err(MilaErr::CannotUseIndexingOnNonArrayType { code: 2 });
                 };
 
-                (unsafe {
-                    self.bld.build_gep(array.get_type(), dest, &[index], "get, array, scary")
-                }, *subkind)
+                (
+                    unsafe {
+                        self.bld
+                            .build_gep(array.get_type(), dest, &[index], "get, array, scary")
+                    },
+                    *subkind,
+                )
             }
             _ => return Err(MilaErr::AssignNotSupported(expr.clone())),
         })

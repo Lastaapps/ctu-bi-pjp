@@ -38,6 +38,7 @@ pub enum MilaErr {
     CannotUseIndexingOnNonArrayType{code: u8},
     VarNotFound(String),
     CannotChangeConstantVariable(String),
+    LogicOnIntOnly,
 }
 
 impl Display for MilaErr {
@@ -90,6 +91,8 @@ impl Display for MilaErr {
                 write!(f, "Variable with name {name} not found"),
             Self::CannotChangeConstantVariable(name) =>
                 write!(f, "Constant {name} cannot be changed"),
+            Self::LogicOnIntOnly(name) =>
+                write!(f, "Logic operations can be performed on integers only"),
         }
     }
 }

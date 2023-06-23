@@ -136,8 +136,7 @@ impl Program {
 
         llvm.compile_step_2(self)?;
 
-        // TODO
-        llvm.mdl.verify();
+        llvm.mdl.verify().unwrap();
 
         todo!()
     }
@@ -314,13 +313,10 @@ impl<'a> LLVM<'a> {
                 .as_instruction_value()
                 .unwrap(),
             Statement::Assign { space, expr } => {
-                ///////////////////////////////////////////////////////////////
-                // TODO add cast float to int
-                ///////////////////////////////////////////////////////////////
-
                 let value = self.compile_expr(expr, symbols)?;
-                let space = self.get_mem_space(space, symbols, true)?;
-                self.bld.build_store(space.0, value)
+                let (space, kind) = self.get_mem_space(space, symbols, true)?;
+                let casted = self.try_cast_into_kind(value, kind)?;
+                self.bld.build_store(space, casted.as_basic_value_enum())
             }
             Statement::For {
                 var_name,
@@ -330,7 +326,9 @@ impl<'a> LLVM<'a> {
                 scope,
             } => todo!(),
             Statement::While { cond, scope } => todo!(),
-            Statement::If { cond, true_branch } => todo!(),
+            Statement::If { cond, true_branch } => {
+
+            },
             Statement::IfElse {
                 cond,
                 true_branch,
@@ -598,7 +596,6 @@ impl<'a> LLVM<'a> {
                 self.bld
                     .build_load(arr_ptr.get_type(), arr_ptr, "array read")
             }
-            _ => panic!(""),
         })
     }
 
@@ -740,6 +737,26 @@ impl<'a> LLVM<'a> {
             };
             return Ok(value);
         }
-        ;todo!()
+        if value.is_int_value() && kind == Kind::Float {
+            return Ok(Box::new(self.bld
+                .build_cast(
+                    InstructionOpcode::SIToFP,
+                    value.into_int_value(),
+                    self.ctx.f64_type(),
+                    "try_cast_int_to_float",
+                )
+                .into_float_value()))
+        };
+        if value.is_float_value() && kind == Kind::Integer {
+            return Ok(Box::new(self.bld
+                .build_cast(
+                    InstructionOpcode::FPToSI,
+                    value.into_float_value(),
+                    self.ctx.i64_type(),
+                    "try_cast_float_to_int",
+                )
+                .into_int_value()))
+        };
+        Err(MilaErr::AssignToDifferentType(kind))
     }
 }

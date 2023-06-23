@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{tokens::{Token, TokenInfo}, ast::Expr};
+use crate::{tokens::{Token, TokenInfo}, ast::{Expr, Kind}};
 
 
 #[derive(Clone)]
@@ -35,6 +35,7 @@ pub enum MilaErr {
     VoidAsVariable,
     WrongCast,
     AssignNotSupported(Expr),
+    AssignToDifferentType(Kind),
     CannotIndexWithNonInteger,
     CannotUseIndexingOnNonArrayType{code: u8},
     VarNotFound(String),
@@ -87,6 +88,8 @@ impl Display for MilaErr {
                 write!(f, "Wrong cast, somewhere..."),
             Self::AssignNotSupported(expr) =>
                 write!(f, "Assign to {:?} not supported", expr),
+            Self::AssignToDifferentType(kind) =>
+                write!(f, "Assignment type mismatch, tried to assign/return {}", kind),
             Self::CannotIndexWithNonInteger =>
                 write!(f, "Cannot uses non integer for indexing"),
             Self::CannotUseIndexingOnNonArrayType { code } =>

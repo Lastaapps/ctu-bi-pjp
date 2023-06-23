@@ -1,20 +1,22 @@
-use core::slice::SlicePattern;
-use std::{collections::{HashMap, HashSet}, any::Any};
+use std::{
+    any::Any,
+    collections::{HashMap, HashSet},
+};
 
 use inkwell::{
     builder::Builder,
     context::Context,
-    module::{Linkage, Module},
-    types::{BasicType, BasicTypeEnum, FunctionType},
+    module::Module,
+    types::{BasicType, BasicTypeEnum},
     values::{
-        BasicValue, BasicValueEnum, FloatValue, FunctionValue, InstructionOpcode, InstructionValue,
-        IntValue, PointerValue,
+        BasicValue, BasicValueEnum, FloatValue, FunctionValue, InstructionOpcode, IntValue,
+        PointerValue,
     },
     AddressSpace, FloatPredicate, IntPredicate,
 };
 
 use crate::{
-    ast::{Constant, Declaration, Expr, Function, Kind, Program, Statement, Value, Variable, Scope},
+    ast::{Constant, Declaration, Expr, Function, Kind, Program, Statement, Value, Variable},
     base::Outcome,
     errors::MilaErr,
     tokens::BuiltInType,
@@ -38,16 +40,13 @@ struct LLVM<'a> {
     address_space: AddressSpace,
 }
 
-struct SymbolTable<'a> {
+struct MilaCtx<'a> {
     symbols: Vec<HashMap<String, VarSymbol<'a>>>,
     functions: HashMap<String, FunSymbol<'a>>,
+    curr_function: Option<(String, Kind)>,
 }
 
-struct LocalCtx {
-    // function name
-    // return type
-    // code block
-}
+const MAIN_NAME: &str = "main";
 
 enum ValuePair<'a> {
     IntPair(IntValue<'a>, IntValue<'a>),
@@ -60,7 +59,8 @@ impl BuiltInType {
             BuiltInType::ReadLine => "built_read_line",
             BuiltInType::Write => "built_write",
             _ => panic!("Built name not supported for {self:?}"),
-        }.to_string()
+        }
+        .to_string()
     }
 }
 
@@ -70,19 +70,21 @@ impl Kind {
             Kind::Integer => "int",
             Kind::Float => "float",
             Kind::String => "str",
-            Kind::Array(k, f, t) =>
-                return format!("arr<{}>[{},{}]", &k.mangle_name(), f, t),
+            Kind::Array(k, f, t) => return format!("arr<{}>[{},{}]", &k.mangle_name(), f, t),
             Kind::Void => "void",
-        }.to_string()
+        }
+        .to_string()
     }
 }
 
 impl Declaration {
     fn mangle_name(&self) -> String {
         let base = "user_".to_string() + &self.name;
-        self.params.iter().fold(base,
-            |x, y| x + "_" + &y.kind.mangle_name())
-            + "+" + &self.return_type.mangle_name()
+        self.params
+            .iter()
+            .fold(base, |x, y| x + "_" + &y.kind.mangle_name())
+            + "+"
+            + &self.return_type.mangle_name()
     }
 }
 
@@ -145,9 +147,10 @@ impl Program {
 impl<'a> LLVM<'a> {
     fn compile_step_2(&self, prog: &Program) -> Outcome<()> {
         let llvm = self;
-        let mut table = SymbolTable {
+        let mut mctx = MilaCtx {
             symbols: vec![],
             functions: HashMap::new(),
+            curr_function: None,
         };
 
         let mut root_map = HashMap::new();
@@ -173,32 +176,35 @@ impl<'a> LLVM<'a> {
                 },
             );
         }
-        table.symbols.push(root_map);
+        mctx.symbols.push(root_map);
 
         for declaration in prog.scope.declarations.iter() {
             self.declare_function(declaration);
-            table.functions.insert(
+            mctx.functions.insert(
                 declaration.name.clone(),
-                FunSymbol { declaration: declaration.clone(), value: self.declare_function(declaration)? },
+                FunSymbol {
+                    declaration: declaration.clone(),
+                    value: self.declare_function(declaration)?,
+                },
             );
         }
         self.declare_builtin_functions();
 
         for function in prog.scope.functions.iter() {
-            self.compile_function(&table, function);
+            self.compile_function(&mctx, function);
         }
 
-        self.compile_main(&table, &prog.scope.main);
+        self.compile_main(&mctx, &prog.scope.main);
 
         Ok(())
     }
 
     fn find_var_in_table(
-        table: &'a SymbolTable<'a>,
+        mctx: &'a MilaCtx<'a>,
         name: &str,
         for_write: bool,
     ) -> Outcome<&'a VarSymbol<'a>> {
-        for map in table.symbols.iter().rev() {
+        for map in mctx.symbols.iter().rev() {
             match map.get(name) {
                 Some(symbol) => {
                     return if symbol.is_const && for_write {
@@ -272,19 +278,14 @@ impl<'a> LLVM<'a> {
     fn declare_builtin_functions(&self) -> Outcome<()> {
         // Write
         {
-            let args = vec![
-                self.kind_to_llvm(&Kind::String)?.into(),
-            ];
+            let args = vec![self.kind_to_llvm(&Kind::String)?.into()];
             let fun = self.ctx.void_type().fn_type(args.as_slice(), false);
             self.mdl.add_function("built_wrileln", fun, None);
         };
         // ReadLine
         {
-            let args = vec![
-                self.ctx.i64_type().ptr_type(self.address_space).into(),
-            ];
-            let fun = self.ctx.i64_type()
-                .fn_type(args.as_slice(), false);
+            let args = vec![self.ctx.i64_type().ptr_type(self.address_space).into()];
+            let fun = self.ctx.i64_type().fn_type(args.as_slice(), false);
             self.mdl.add_function("built_readln", fun, None);
         };
         Ok(())
@@ -301,22 +302,19 @@ impl<'a> LLVM<'a> {
             .as_pointer_value())
     }
 
-    fn compile_statement(
-        &self,
-        statement: &Statement,
-        symbols: &'a SymbolTable<'a>,
-    ) -> Outcome<InstructionValue<'a>> {
-        Ok(match statement {
+    fn compile_statement(&self, mctx: &'a MilaCtx<'a>, statement: &Statement) -> Outcome<()> {
+        match statement {
             Statement::Block { statements } => todo!(),
-            Statement::ExprWrapper(expr) => self
-                .compile_expr(expr, symbols)?
-                .as_instruction_value()
-                .unwrap(),
+            Statement::ExprWrapper(expr) => {
+                self.compile_expr(mctx, expr)?
+                    .as_instruction_value()
+                    .unwrap();
+            }
             Statement::Assign { space, expr } => {
-                let value = self.compile_expr(expr, symbols)?;
-                let (space, kind) = self.get_mem_space(space, symbols, true)?;
-                let casted = self.try_cast_into_kind(value, kind)?;
-                self.bld.build_store(space, casted.as_basic_value_enum())
+                let value = self.compile_expr(mctx, expr)?;
+                let (space, kind) = self.get_mem_space(mctx, space, true)?;
+                let casted = self.try_cast_into_kind(value, &kind)?;
+                self.bld.build_store(space, casted.as_basic_value_enum());
             }
             Statement::For {
                 var_name,
@@ -324,18 +322,145 @@ impl<'a> LLVM<'a> {
                 to,
                 is_to,
                 scope,
-            } => todo!(),
-            Statement::While { cond, scope } => todo!(),
-            Statement::If { cond, true_branch } => {
+            } => {
+                let prev_cb = self.bld.get_insert_block().unwrap();
+                let parent_func = prev_cb.get_parent().unwrap();
+                let cond_cb = self.ctx.append_basic_block(parent_func, "for_cond");
+                let body_cb = self.ctx.append_basic_block(parent_func, "for_body");
+                let follow_cb = self.ctx.append_basic_block(parent_func, "for_follow");
 
-            },
+                let (space, kind) =
+                    self.get_mem_space(mctx, &Expr::VarAccess(var_name.to_string()), true)?;
+                if kind != Kind::Integer {
+                    return Err(MilaErr::ForIntOnly);
+                }
+
+                let from = self.compile_expr(mctx, from)?;
+                if !from.is_int_value() {
+                    return Err(MilaErr::ForIntOnly);
+                }
+                self.bld.build_store(space, from);
+
+                self.bld.build_unconditional_branch(cond_cb);
+                self.bld.position_at_end(cond_cb);
+
+                let to = self.compile_expr(mctx, to)?;
+                let to = if !to.is_int_value() {
+                    return Err(MilaErr::ForIntOnly);
+                } else {
+                    to.into_int_value()
+                };
+
+                let current = self
+                    .bld
+                    .build_load(self.ctx.i64_type(), space, "for_load")
+                    .into_int_value();
+
+                let cond = self
+                    .bld
+                    .build_int_compare(IntPredicate::NE, current, to, "for_compare");
+                self.bld.build_conditional_branch(cond, body_cb, follow_cb);
+
+                self.bld.position_at_end(body_cb);
+                self.compile_statement(mctx, &scope);
+                self.bld.build_unconditional_branch(cond_cb);
+
+                self.bld.position_at_end(follow_cb);
+            }
+            Statement::While { cond, scope } => {
+                let prev_cb = self.bld.get_insert_block().unwrap();
+                let parent_func = prev_cb.get_parent().unwrap();
+                let cond_cb = self.ctx.append_basic_block(parent_func, "while_cond");
+                let body_cb = self.ctx.append_basic_block(parent_func, "while_body");
+                let follow_cb = self.ctx.append_basic_block(parent_func, "while_follow");
+
+                self.bld.build_unconditional_branch(cond_cb);
+                self.bld.position_at_end(cond_cb);
+
+                let cond = self.compile_expr(mctx, cond)?;
+                let cond = self
+                    .try_cast_into_kind(cond, &Kind::Integer)?
+                    .as_basic_value_enum()
+                    .into_int_value();
+                self.bld.build_conditional_branch(cond, body_cb, follow_cb);
+
+                self.bld.position_at_end(body_cb);
+                self.compile_statement(mctx, &scope);
+                self.bld.build_unconditional_branch(cond_cb);
+
+                self.bld.position_at_end(follow_cb);
+            }
+            Statement::If { cond, true_branch } => {
+                let prev_cb = self.bld.get_insert_block().unwrap();
+                let parent_func = prev_cb.get_parent().unwrap();
+                let if_true_cb = self.ctx.append_basic_block(parent_func, "if_true");
+                let follow_cb = self.ctx.append_basic_block(parent_func, "if_follow");
+
+                let cond = self.compile_expr(mctx, cond)?;
+                let cond = self
+                    .try_cast_into_kind(cond, &Kind::Integer)?
+                    .as_basic_value_enum()
+                    .into_int_value();
+
+                self.bld
+                    .build_conditional_branch(cond, if_true_cb, follow_cb);
+
+                self.bld.position_at_end(if_true_cb);
+                self.compile_statement(mctx, &true_branch);
+                self.bld.build_unconditional_branch(follow_cb);
+
+                self.bld.position_at_end(follow_cb);
+            }
             Statement::IfElse {
                 cond,
                 true_branch,
                 false_branch,
-            } => todo!(),
-            Statement::Exit => todo!(),
-        })
+            } => {
+                let prev_cb = self.bld.get_insert_block().unwrap();
+                let parent_func = prev_cb.get_parent().unwrap();
+                let if_true_cb = self.ctx.append_basic_block(parent_func, "if_true");
+                let if_false_cb = self.ctx.append_basic_block(parent_func, "if_false");
+                let follow_cb = self.ctx.append_basic_block(parent_func, "if_follow");
+
+                let cond = self.compile_expr(mctx, cond)?;
+                let cond = if cond.is_int_value() {
+                    cond.into_int_value()
+                } else {
+                    self.try_cast_into_kind(cond, &Kind::Integer)?
+                        .as_basic_value_enum()
+                        .into_int_value()
+                };
+
+                self.bld
+                    .build_conditional_branch(cond, if_true_cb, if_false_cb);
+
+                self.bld.position_at_end(if_true_cb);
+                self.compile_statement(mctx, &true_branch);
+                self.bld.build_unconditional_branch(follow_cb);
+
+                self.bld.position_at_end(if_false_cb);
+                self.compile_statement(mctx, &false_branch);
+                self.bld.build_unconditional_branch(follow_cb);
+
+                self.bld.position_at_end(follow_cb);
+            }
+            Statement::Exit => {
+                let (name, kind) = &mctx.curr_function.unwrap();
+                if (kind == &Kind::Void) {
+                    self.bld.build_return(None);
+                } else {
+                    let (space, _) =
+                        self.get_mem_space(mctx, &Expr::VarAccess(name.clone()), false)?;
+                    let value = self
+                        .bld
+                        .build_load(self.kind_to_llvm(&kind)?, space, "exit_load");
+                    self.bld
+                        .build_return(Some(&*self.try_cast_into_kind(value, kind)?));
+                }
+                todo!()
+            }
+        };
+        Ok(())
     }
 
     fn cast_to_same(
@@ -383,15 +508,11 @@ impl<'a> LLVM<'a> {
         Ok(ValuePair::FloatPair(lhs, rhs))
     }
 
-    fn compile_expr(
-        &self,
-        expr: &Expr,
-        symbols: &'a SymbolTable<'a>,
-    ) -> Outcome<BasicValueEnum<'a>> {
+    fn compile_expr(&self, mctx: &'a MilaCtx<'a>, expr: &Expr) -> Outcome<BasicValueEnum<'a>> {
         Ok(match expr {
             Expr::Add(lhs, rhs) => {
-                let lhs = self.compile_expr(lhs, symbols)?;
-                let rhs = self.compile_expr(rhs, symbols)?;
+                let lhs = self.compile_expr(mctx, lhs)?;
+                let rhs = self.compile_expr(mctx, rhs)?;
 
                 match self.cast_to_same(lhs, rhs, "add")? {
                     ValuePair::IntPair(lhs, rhs) => {
@@ -403,8 +524,8 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Sub(lhs, rhs) => {
-                let lhs = self.compile_expr(lhs, symbols)?;
-                let rhs = self.compile_expr(rhs, symbols)?;
+                let lhs = self.compile_expr(mctx, lhs)?;
+                let rhs = self.compile_expr(mctx, rhs)?;
 
                 match self.cast_to_same(lhs, rhs, "sub")? {
                     ValuePair::IntPair(lhs, rhs) => self.bld.build_int_sub(lhs, rhs, "int").into(),
@@ -414,8 +535,8 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Mul(lhs, rhs) => {
-                let lhs = self.compile_expr(lhs, symbols)?;
-                let rhs = self.compile_expr(rhs, symbols)?;
+                let lhs = self.compile_expr(mctx, lhs)?;
+                let rhs = self.compile_expr(mctx, rhs)?;
 
                 match self.cast_to_same(lhs, rhs, "mul")? {
                     ValuePair::IntPair(lhs, rhs) => {
@@ -427,8 +548,8 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Div(lhs, rhs) => {
-                let lhs = self.compile_expr(lhs, symbols)?;
-                let rhs = self.compile_expr(rhs, symbols)?;
+                let lhs = self.compile_expr(mctx, lhs)?;
+                let rhs = self.compile_expr(mctx, rhs)?;
 
                 match self.cast_to_same(lhs, rhs, "div")? {
                     ValuePair::IntPair(lhs, rhs) => {
@@ -440,8 +561,8 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Mod(lhs, rhs) => {
-                let lhs = self.compile_expr(lhs, symbols)?;
-                let rhs = self.compile_expr(rhs, symbols)?;
+                let lhs = self.compile_expr(mctx, lhs)?;
+                let rhs = self.compile_expr(mctx, rhs)?;
 
                 match self.cast_to_same(lhs, rhs, "mod")? {
                     ValuePair::IntPair(lhs, rhs) => {
@@ -453,8 +574,8 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Gt(lhs, rhs) => {
-                let lhs = self.compile_expr(lhs, symbols)?;
-                let rhs = self.compile_expr(rhs, symbols)?;
+                let lhs = self.compile_expr(mctx, lhs, )?;
+                let rhs = self.compile_expr(mctx, rhs, )?;
 
                 match self.cast_to_same(lhs, rhs, "gt")? {
                     ValuePair::IntPair(lhs, rhs) => self
@@ -468,8 +589,8 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Ge(lhs, rhs) => {
-                let lhs = self.compile_expr(lhs, symbols)?;
-                let rhs = self.compile_expr(rhs, symbols)?;
+                let lhs = self.compile_expr( mctx,lhs,)?;
+                let rhs = self.compile_expr( mctx,rhs,)?;
 
                 match self.cast_to_same(lhs, rhs, "ge")? {
                     ValuePair::IntPair(lhs, rhs) => self
@@ -483,8 +604,8 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Lt(lhs, rhs) => {
-                let lhs = self.compile_expr(lhs, symbols)?;
-                let rhs = self.compile_expr(rhs, symbols)?;
+                let lhs = self.compile_expr( mctx, lhs,)?;
+                let rhs = self.compile_expr( mctx, rhs,)?;
 
                 match self.cast_to_same(lhs, rhs, "lt")? {
                     ValuePair::IntPair(lhs, rhs) => self
@@ -498,8 +619,8 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Le(lhs, rhs) => {
-                let lhs = self.compile_expr(lhs, symbols)?;
-                let rhs = self.compile_expr(rhs, symbols)?;
+                let lhs = self.compile_expr( mctx, lhs,)?;
+                let rhs = self.compile_expr( mctx, rhs,)?;
 
                 match self.cast_to_same(lhs, rhs, "le")? {
                     ValuePair::IntPair(lhs, rhs) => self
@@ -513,8 +634,8 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Eq(lhs, rhs) => {
-                let lhs = self.compile_expr(lhs, symbols)?;
-                let rhs = self.compile_expr(rhs, symbols)?;
+                let lhs = self.compile_expr(mctx, lhs, )?;
+                let rhs = self.compile_expr(mctx, rhs, )?;
 
                 match self.cast_to_same(lhs, rhs, "eq")? {
                     ValuePair::IntPair(lhs, rhs) => self
@@ -528,8 +649,8 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Ne(lhs, rhs) => {
-                let lhs = self.compile_expr(lhs, symbols)?;
-                let rhs = self.compile_expr(rhs, symbols)?;
+                let lhs = self.compile_expr(mctx, lhs, )?;
+                let rhs = self.compile_expr(mctx, rhs, )?;
 
                 match self.cast_to_same(lhs, rhs, "ne")? {
                     ValuePair::IntPair(lhs, rhs) => self
@@ -543,8 +664,8 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::And(lhs, rhs) => {
-                let lhs = self.compile_expr(lhs, symbols)?;
-                let rhs = self.compile_expr(rhs, symbols)?;
+                let lhs = self.compile_expr( mctx, lhs,)?;
+                let rhs = self.compile_expr( mctx, rhs,)?;
                 if !lhs.is_int_value() || !rhs.is_int_value() {
                     return Err(MilaErr::LogicOnIntOnly);
                 }
@@ -553,8 +674,8 @@ impl<'a> LLVM<'a> {
                     .into()
             }
             Expr::Or(lhs, rhs) => {
-                let lhs = self.compile_expr(lhs, symbols)?;
-                let rhs = self.compile_expr(rhs, symbols)?;
+                let lhs = self.compile_expr(mctx, lhs, )?;
+                let rhs = self.compile_expr(mctx, rhs, )?;
                 if !lhs.is_int_value() || !rhs.is_int_value() {
                     return Err(MilaErr::LogicOnIntOnly);
                 }
@@ -573,26 +694,30 @@ impl<'a> LLVM<'a> {
             Expr::FunCall { name, args } => {
                 let mut lowered = vec![];
                 for expr in args.iter() {
-                    lowered.push(self.compile_expr(expr, symbols)?.into());
+                    lowered.push(self.compile_expr(mctx, expr)?.into());
                 }
                 let args = lowered;
 
-                let fun = symbols.functions.get(name).ok_or_else(|| MilaErr::FunctionNotDefined(name.clone()))?;
+                let fun = mctx
+                    .functions
+                    .get(name)
+                    .ok_or_else(|| MilaErr::FunctionNotDefined(name.clone()))?;
                 let mangled = fun.declaration.mangle_name();
 
                 let fun = self.mdl.get_function(&mangled).unwrap();
 
-                self.bld.build_direct_call(fun, args.as_slice(), "function_call");
+                self.bld
+                    .build_direct_call(fun, args.as_slice(), "function_call");
                 todo!()
             }
             Expr::BuiltIn { name, args } => todo!(),
             Expr::VarAccess(name) => {
-                let symbol = LLVM::find_var_in_table(symbols, name, false)?;
+                let symbol = LLVM::find_var_in_table(mctx, name, false)?;
                 self.bld
                     .build_load(self.kind_to_llvm(&symbol.kind)?, symbol.ptr, name)
             }
             Expr::ArrayAccess(store, _) => {
-                let arr_ptr = self.get_mem_space(expr, symbols, false)?.0;
+                let arr_ptr = self.get_mem_space(mctx, expr, false)?.0;
                 self.bld
                     .build_load(arr_ptr.get_type(), arr_ptr, "array read")
             }
@@ -601,25 +726,25 @@ impl<'a> LLVM<'a> {
 
     fn get_mem_space(
         &self,
+        mctx: &'a MilaCtx<'a>,
         expr: &Expr,
-        symbols: &'a SymbolTable<'a>,
         is_write: bool,
     ) -> Outcome<(PointerValue<'a>, Kind)> {
         Ok(match expr {
             // Expr::FunCall { name, args } => todo!(),
             Expr::VarAccess(name) => {
-                let symbol = LLVM::find_var_in_table(symbols, name, is_write)?;
+                let symbol = LLVM::find_var_in_table(mctx, name, is_write)?;
                 (symbol.ptr, symbol.kind.clone())
             }
             Expr::ArrayAccess(store, index) => {
-                let index = self.compile_expr(index, symbols)?;
+                let index = self.compile_expr(mctx, index, )?;
                 let index = if index.is_int_value() {
                     index.into_int_value()
                 } else {
                     return Err(MilaErr::CannotIndexWithNonInteger);
                 };
 
-                let (dest, kind) = self.get_mem_space(store, symbols, is_write)?;
+                let (dest, kind) = self.get_mem_space(mctx, store, is_write)?;
 
                 let (subkind, index) = match kind {
                     Kind::Array(subkind, from, _) => {
@@ -654,13 +779,10 @@ impl<'a> LLVM<'a> {
         })
     }
 
-    fn compile_function(
-        &self,
-        symbols: &'a SymbolTable<'a>,
-        function: &Function,
-    ) -> Outcome<()> {
-        let fun_symbol = symbols
-            .functions.get(&function.name)
+    fn compile_function(&self, mctx: &'a MilaCtx<'a>, function: &Function) -> Outcome<()> {
+        let fun_symbol = mctx
+            .functions
+            .get(&function.name)
             .ok_or_else(|| MilaErr::FunctionNotDefined(function.name.clone()))?;
         let declaration = &fun_symbol.declaration;
 
@@ -670,93 +792,123 @@ impl<'a> LLVM<'a> {
         for (i, arg) in function.vars.iter().enumerate() {
             let param = fun.get_nth_param(i.try_into().unwrap()).unwrap();
             param.set_name(&arg.name);
-            vars.insert(arg.name.clone(), VarSymbol{
-                kind: arg.kind.clone(), ptr: param.into_pointer_value(), is_const: false
-            });
+            vars.insert(
+                arg.name.clone(),
+                VarSymbol {
+                    kind: arg.kind.clone(),
+                    ptr: param.into_pointer_value(),
+                    is_const: false,
+                },
+            );
         }
 
-        let return_alloc = self.bld.build_alloca(self.kind_to_llvm(&declaration.return_type)?, "return_var");
-        vars.insert(declaration.name, VarSymbol{
-            kind: declaration.return_type, ptr: return_alloc, is_const: false
-        });
+        let return_alloc = self
+            .bld
+            .build_alloca(self.kind_to_llvm(&declaration.return_type)?, "return_var");
+        vars.insert(
+            declaration.name,
+            VarSymbol {
+                kind: declaration.return_type,
+                ptr: return_alloc,
+                is_const: false,
+            },
+        );
 
-        symbols.symbols.push(vars);
+        mctx.symbols.push(vars);
+        mctx.curr_function = Some((declaration.name, declaration.return_type));
 
         let bb = self.ctx.append_basic_block(fun, "fun_compilation");
-        
-        let _instruction = self.compile_statement(&function.statement, symbols)?;
-        
+
+        let _instruction = self.compile_statement(mctx, &function.statement)?;
+
         // fallback return
         let _return_val = if declaration.return_type == Kind::Void {
             self.bld.build_return(None)
         } else {
-
-            let to_return = self.try_cast_into_kind(return_alloc.as_basic_value_enum(), declaration.return_type)?;
+            let to_return = self
+                .try_cast_into_kind(return_alloc.as_basic_value_enum(), &declaration.return_type)?;
             self.bld.build_return(Some(&*to_return))
         };
 
-        symbols.symbols.pop();
+        mctx.symbols.pop();
+        mctx.curr_function = None;
 
         return Ok(());
     }
 
-    fn compile_main(
-        &self,
-        symbols: &'a SymbolTable<'a>,
-        statement: &Statement,
-    ) -> Outcome<()> {
-        let name = "main".to_string();
+    fn compile_main(&self, mctx: &'a MilaCtx<'a>, statement: &Statement) -> Outcome<()> {
+        let name = MAIN_NAME.to_string();
         let mut vars = HashMap::new();
-        let return_alloc = self.bld.build_alloca(self.ctx.i64_type(), "main_return_var");
-        vars.insert(name, VarSymbol{
-            kind: Kind::Integer, ptr: return_alloc, is_const: false
-        });
-        symbols.symbols.push(vars);
+        let return_alloc = self
+            .bld
+            .build_alloca(self.ctx.i64_type(), "main_return_var");
+        vars.insert(
+            name,
+            VarSymbol {
+                kind: Kind::Integer,
+                ptr: return_alloc,
+                is_const: false,
+            },
+        );
+        mctx.symbols.push(vars);
+        mctx.curr_function = Some((name, Kind::Integer));
 
-        let main_function = self.mdl.add_function(&name, self.ctx.i64_type().fn_type(&[], false), None);
+        let main_function =
+            self.mdl
+                .add_function(&name, self.ctx.i64_type().fn_type(&[], false), None);
         let entry = self.ctx.append_basic_block(main_function, "main_block");
         self.bld.position_at_end(entry);
 
-        let _instruction = self.compile_statement(&statement, symbols)?;
+        let _instruction = self.compile_statement(mctx, &statement)?;
         // fallback return
-        self.bld.build_return(Some(&self.ctx.i64_type().const_int(42, false)));
+        self.bld
+            .build_return(Some(&self.ctx.i64_type().const_int(42, false)));
 
-        symbols.symbols.pop();
+        mctx.symbols.pop();
+        mctx.curr_function = None;
 
         return Ok(());
     }
 
-    fn try_cast_into_kind(&self, value: BasicValueEnum<'a>, kind: Kind) -> Outcome<Box<dyn BasicValue>>{
+    fn try_cast_into_kind(
+        &self,
+        value: BasicValueEnum<'a>,
+        kind: &Kind,
+    ) -> Outcome<Box<dyn BasicValue>> {
         if self.kind_to_llvm(&kind)?.type_id() == value.get_type().type_id() {
             let value: Box<dyn BasicValue> = match kind {
                 Kind::Integer => Box::new(value.into_int_value()),
                 Kind::Float => Box::new(value.into_float_value()),
                 Kind::String => Box::new(value.into_pointer_value()),
                 Kind::Array(_, _, _) => Box::new(value.into_array_value()),
-                _ => return Err(MilaErr::WrongCast)
+                _ => return Err(MilaErr::WrongCast),
             };
             return Ok(value);
         }
-        if value.is_int_value() && kind == Kind::Float {
-            return Ok(Box::new(self.bld
-                .build_cast(
-                    InstructionOpcode::SIToFP,
-                    value.into_int_value(),
-                    self.ctx.f64_type(),
-                    "try_cast_int_to_float",
-                )
-                .into_float_value()))
+        if value.is_int_value() && kind == &Kind::Float {
+            return Ok(Box::new(
+                self.bld
+                    .build_cast(
+                        InstructionOpcode::SIToFP,
+                        value.into_int_value(),
+                        self.ctx.f64_type(),
+                        "try_cast_int_to_float",
+                    )
+                    .into_float_value(),
+            ));
         };
-        if value.is_float_value() && kind == Kind::Integer {
-            return Ok(Box::new(self.bld
-                .build_cast(
-                    InstructionOpcode::FPToSI,
-                    value.into_float_value(),
-                    self.ctx.i64_type(),
-                    "try_cast_float_to_int",
-                )
-                .into_int_value()))
+        if value.is_float_value() && kind == &Kind::Integer {
+            return Ok(Box::new(
+                self.bld
+                    .build_cast(
+                        InstructionOpcode::FPToSI,
+                        value.into_float_value(),
+                        self.ctx.i64_type(),
+                        "try_cast_float_to_int",
+                    )
+                    .into_int_value(),
+            ));
         };
-        Err(MilaErr::AssignToDifferentType(kind))
+        Err(MilaErr::AssignToDifferentType(kind.clone()))
     }
 }

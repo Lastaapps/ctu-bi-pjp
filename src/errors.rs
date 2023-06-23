@@ -42,6 +42,7 @@ pub enum MilaErr {
     CannotChangeConstantVariable(String),
     LogicOnIntOnly,
     FunctionNotDefined(String),
+    ForIntOnly,
 }
 
 impl Display for MilaErr {
@@ -102,6 +103,8 @@ impl Display for MilaErr {
                 write!(f, "Logic operations can be performed on integers only"),
             Self::FunctionNotDefined(name) =>
                 write!(f, "Function with name {name} is not defined"),
+            Self::ForIntOnly =>
+                write!(f, "For can be used only with integer variables and values"),
         }
     }
 }

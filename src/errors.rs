@@ -90,7 +90,7 @@ impl Display for MilaErr {
             Self::AssignNotSupported(expr) =>
                 write!(f, "Assign to {:?} not supported", expr),
             Self::AssignToDifferentType(kind) =>
-                write!(f, "Assignment type mismatch, tried to assign/return {}", kind),
+                write!(f, "Assignment type mismatch, tried to assign/return {:?}", kind),
             Self::CannotIndexWithNonInteger =>
                 write!(f, "Cannot uses non integer for indexing"),
             Self::CannotUseIndexingOnNonArrayType { code } =>

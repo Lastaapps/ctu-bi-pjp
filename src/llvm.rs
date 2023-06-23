@@ -109,11 +109,12 @@ impl Program {
 
     fn find_invalid_functions(&self) -> Outcome<()> {
         let mut names: HashSet<&String> = HashSet::new();
-        names.insert(&"main".to_string());
+        let main_name = MAIN_NAME.to_string();
+        names.insert(&main_name);
 
         for declaration in self.scope.declarations.iter() {
             if names.contains(&declaration.name) {
-                return Err(MilaErr::DuplicateFunName(declaration.name));
+                return Err(MilaErr::DuplicateFunName(declaration.name.clone()));
             }
             names.insert(&declaration.name);
         }
@@ -122,6 +123,12 @@ impl Program {
     }
 
     pub fn compile(&self) -> Outcome<()> {
+        let mut mctx = MilaCtx {
+            symbols: vec![],
+            functions: HashMap::new(),
+            curr_function: None,
+        };
+
         // llvm context
         let context = Context::create();
         let module = context.create_module(&self.name);
@@ -136,7 +143,7 @@ impl Program {
         self.find_duplicate_names_vars_constants()?;
         self.find_invalid_functions()?;
 
-        llvm.compile_step_2(self)?;
+        llvm.compile_step_2(&mut mctx, self)?;
 
         llvm.mdl.verify().unwrap();
 
@@ -145,13 +152,8 @@ impl Program {
 }
 
 impl<'a> LLVM<'a> {
-    fn compile_step_2(&self, prog: &Program) -> Outcome<()> {
+    fn compile_step_2(&self, mctx: &'a mut MilaCtx<'a>, prog: &Program) -> Outcome<()> {
         let llvm = self;
-        let mut mctx = MilaCtx {
-            symbols: vec![],
-            functions: HashMap::new(),
-            curr_function: None,
-        };
 
         let mut root_map = HashMap::new();
         for var in prog.scope.vars.iter() {
@@ -191,10 +193,10 @@ impl<'a> LLVM<'a> {
         self.declare_builtin_functions();
 
         for function in prog.scope.functions.iter() {
-            self.compile_function(&mctx, function);
+            self.compile_function(mctx, function);
         }
 
-        self.compile_main(&mctx, &prog.scope.main);
+        self.compile_main(mctx, &prog.scope.main);
 
         Ok(())
     }
@@ -445,7 +447,7 @@ impl<'a> LLVM<'a> {
                 self.bld.position_at_end(follow_cb);
             }
             Statement::Exit => {
-                let (name, kind) = &mctx.curr_function.unwrap();
+                let (name, kind) = mctx.curr_function.as_ref().unwrap();
                 if (kind == &Kind::Void) {
                     self.bld.build_return(None);
                 } else {
@@ -779,7 +781,7 @@ impl<'a> LLVM<'a> {
         })
     }
 
-    fn compile_function(&self, mctx: &'a MilaCtx<'a>, function: &Function) -> Outcome<()> {
+    fn compile_function(&self, mctx: &'a mut MilaCtx<'a>, function: &Function) -> Outcome<()> {
         let fun_symbol = mctx
             .functions
             .get(&function.name)
@@ -806,16 +808,16 @@ impl<'a> LLVM<'a> {
             .bld
             .build_alloca(self.kind_to_llvm(&declaration.return_type)?, "return_var");
         vars.insert(
-            declaration.name,
+            declaration.name.clone(),
             VarSymbol {
-                kind: declaration.return_type,
+                kind: declaration.return_type.clone(),
                 ptr: return_alloc,
                 is_const: false,
             },
         );
 
         mctx.symbols.push(vars);
-        mctx.curr_function = Some((declaration.name, declaration.return_type));
+        mctx.curr_function = Some((declaration.name.clone(), declaration.return_type.clone()));
 
         let bb = self.ctx.append_basic_block(fun, "fun_compilation");
 
@@ -836,14 +838,14 @@ impl<'a> LLVM<'a> {
         return Ok(());
     }
 
-    fn compile_main(&self, mctx: &'a MilaCtx<'a>, statement: &Statement) -> Outcome<()> {
+    fn compile_main(&self, mctx: &'a mut MilaCtx<'a>, statement: &Statement) -> Outcome<()> {
         let name = MAIN_NAME.to_string();
         let mut vars = HashMap::new();
         let return_alloc = self
             .bld
             .build_alloca(self.ctx.i64_type(), "main_return_var");
         vars.insert(
-            name,
+            name.clone(),
             VarSymbol {
                 kind: Kind::Integer,
                 ptr: return_alloc,
@@ -851,9 +853,9 @@ impl<'a> LLVM<'a> {
             },
         );
         mctx.symbols.push(vars);
-        mctx.curr_function = Some((name, Kind::Integer));
+        mctx.curr_function = Some((name.clone(), Kind::Integer));
 
-        let main_function =
+        let main_function  =
             self.mdl
                 .add_function(&name, self.ctx.i64_type().fn_type(&[], false), None);
         let entry = self.ctx.append_basic_block(main_function, "main_block");
@@ -875,7 +877,8 @@ impl<'a> LLVM<'a> {
         value: BasicValueEnum<'a>,
         kind: &Kind,
     ) -> Outcome<Box<dyn BasicValue>> {
-        if self.kind_to_llvm(&kind)?.type_id() == value.get_type().type_id() {
+        let type_id = value.get_type().type_id();
+        if self.kind_to_llvm(&kind)?.type_id() == type_id {
             let value: Box<dyn BasicValue> = match kind {
                 Kind::Integer => Box::new(value.into_int_value()),
                 Kind::Float => Box::new(value.into_float_value()),

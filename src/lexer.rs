@@ -125,9 +125,11 @@ impl LexerImpl {
             
             "dec" => Token::BuiltIn(BuiltInType::Dec),
             "inc" => Token::BuiltIn(BuiltInType::Inc),
-            "writeln" => Token::BuiltIn(BuiltInType::Writeln),
-            "readln" => Token::BuiltIn(BuiltInType::Readln),
             "write" => Token::BuiltIn(BuiltInType::Write),
+            "writeln" => Token::BuiltIn(BuiltInType::WriteLine),
+            "readln" => Token::BuiltIn(BuiltInType::ReadLine),
+            "print" => Token::BuiltIn(BuiltInType::Print),
+            "println" => Token::BuiltIn(BuiltInType::PrintLine),
 
             _ => Token::Identifier(keyword)
         }

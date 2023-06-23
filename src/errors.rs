@@ -31,6 +31,7 @@ pub enum MilaErr {
 
     // llvm
     DuplicateGlobal(String),
+    DuplicateFunName(String),
     VoidAsVariable,
     WrongCast,
     AssignNotSupported(Expr),
@@ -39,6 +40,7 @@ pub enum MilaErr {
     VarNotFound(String),
     CannotChangeConstantVariable(String),
     LogicOnIntOnly,
+    FunctionNotDefined(String),
 }
 
 impl Display for MilaErr {
@@ -77,6 +79,8 @@ impl Display for MilaErr {
             // llvm
             Self::DuplicateGlobal(name) =>
                 write!(f, "Duplicate global variable or constant: {name}"),
+            Self::DuplicateFunName(name) =>
+                write!(f, "Duplicate fun name: {name}"),
             Self::VoidAsVariable =>
                 write!(f, "Variable cannot be of the type: void"),
             Self::WrongCast =>
@@ -91,8 +95,10 @@ impl Display for MilaErr {
                 write!(f, "Variable with name {name} not found"),
             Self::CannotChangeConstantVariable(name) =>
                 write!(f, "Constant {name} cannot be changed"),
-            Self::LogicOnIntOnly(name) =>
+            Self::LogicOnIntOnly =>
                 write!(f, "Logic operations can be performed on integers only"),
+            Self::FunctionNotDefined(name) =>
+                write!(f, "Function with name {name} is not defined"),
         }
     }
 }

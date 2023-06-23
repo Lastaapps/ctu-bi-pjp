@@ -42,7 +42,7 @@ pub struct Scope {
     pub main: Statement,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Variable{
     pub name: String,
     pub kind: Kind,
@@ -54,7 +54,7 @@ pub struct Constant {
     pub val: Value,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Declaration {
     pub name: String,
     pub params: Vec<Variable>,
@@ -65,7 +65,7 @@ pub struct Declaration {
 pub struct Function {
     pub name: String,
     pub vars: Vec<Variable>,
-    pub scope: Box<Statement>,
+    pub statement: Box<Statement>,
 }
 
 type BExpr = Box<Expr>;

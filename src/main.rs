@@ -100,7 +100,7 @@ fn main() {
     match run_mila(mode) {
         Err(e) => {
             eprintln!("Compilation failed: {e}");
-            process::exit(1);
+            process::exit(42);
         },
         _ => {},
     }

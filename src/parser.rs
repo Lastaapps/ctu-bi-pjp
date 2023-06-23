@@ -281,7 +281,7 @@ fn parse_fun_or_dec(parser: &mut Parser) -> Outcome<(Declaration, Option<Functio
     let code = parse_block(parser)?;
     parser.assert_token(Token::Operator(OT::Semicolon))?;
     
-    Ok((declaration, Some(Function { name: name, vars: vars, scope: Box::new(code) })))
+    Ok((declaration, Some(Function { name: name, vars: vars, statement: Box::new(code) })))
 }
 
 fn parse_params(parser: &mut Parser) -> Outcome<Vec<Variable>>{

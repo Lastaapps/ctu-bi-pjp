@@ -77,9 +77,9 @@ pub type BIT = BuiltInType;
 pub enum BuiltInType {
     Dec,
     Inc,
-    Writeln,
-    Readln,
-    Write,
+    Write, WriteLine,
+    ReadLine,
+    Print, PrintLine,
 }
 
 #[derive(Debug, PartialEq, Clone)]

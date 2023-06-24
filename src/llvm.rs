@@ -3,11 +3,11 @@ use std::collections::{HashMap, HashSet};
 use inkwell::{
     builder::Builder,
     context::Context,
-    module::Module,
+    module::{Linkage, Module},
     types::{BasicType, BasicTypeEnum},
     values::{
-        BasicValue, BasicValueEnum, FloatValue, FunctionValue, InstructionOpcode, IntValue,
-        PointerValue,
+        BasicValue, BasicValueEnum, FloatValue, FunctionValue,
+        InstructionOpcode, IntValue, PointerValue,
     },
     AddressSpace, FloatPredicate, IntPredicate,
 };
@@ -58,6 +58,7 @@ impl BuiltInType {
         match self {
             BuiltInType::ReadLine => "built_read_line",
             BuiltInType::Write => "built_write",
+            BuiltInType::Print => "built_print",
             _ => panic!("Built name not supported for {self:?}"),
         }
         .to_string()
@@ -274,17 +275,26 @@ impl<'a> LLVM<'a> {
     }
 
     fn declare_builtin_functions(&self) -> Outcome<()> {
+        // Print
+        {
+            let args = vec![self.kind_to_llvm(&Kind::Integer)?.into()];
+            let fun = self.ctx.i64_type().fn_type(args.as_slice(), false);
+            self.mdl
+                .add_function(&BuiltInType::Print.fn_name(), fun, Some(Linkage::External));
+        };
         // Write
         {
             let args = vec![self.kind_to_llvm(&Kind::String)?.into()];
             let fun = self.ctx.void_type().fn_type(args.as_slice(), false);
-            self.mdl.add_function("built_wrileln", fun, None);
+            self.mdl
+                .add_function(&BuiltInType::Write.fn_name(), fun, Some(Linkage::External));
         };
         // ReadLine
         {
             let args = vec![self.ctx.i64_type().ptr_type(self.address_space).into()];
             let fun = self.ctx.i64_type().fn_type(args.as_slice(), false);
-            self.mdl.add_function("built_readln", fun, None);
+            self.mdl
+                .add_function(&BuiltInType::Write.fn_name(), fun, Some(Linkage::External));
         };
         Ok(())
     }
@@ -306,7 +316,7 @@ impl<'a> LLVM<'a> {
                 for statement in statements.iter() {
                     self.compile_statement(statement)?;
                 }
-            },
+            }
             Statement::ExprWrapper(expr) => {
                 self.compile_expr(expr)?.as_instruction_value().unwrap();
             }
@@ -366,7 +376,10 @@ impl<'a> LLVM<'a> {
                 self.compile_statement(&scope)?;
 
                 // +- 1
-                let loaded = self.bld.build_load(int_type, space, "for_int_load").into_int_value();
+                let loaded = self
+                    .bld
+                    .build_load(int_type, space, "for_int_load")
+                    .into_int_value();
                 let one = int_type.const_int(1, true);
                 let modify = if *is_to {
                     self.bld.build_int_add(loaded, one, "for_inc")
@@ -722,7 +735,139 @@ impl<'a> LLVM<'a> {
                     .left()
                     .unwrap()
             }
-            Expr::BuiltIn { name: _, args: _ } => todo!(),
+            Expr::BuiltIn { kind: built_in, args } => {
+                fn assert_size<T>(
+                    built_in: &BuiltInType,
+                    args: &Vec<T>,
+                    size: usize,
+                ) -> Outcome<()> {
+                    if args.len() == size {
+                        Ok(())
+                    } else {
+                        Err(MilaErr::BuiltInWrongArgCount(built_in.clone(), args.len()))
+                    }
+                }
+
+                let int_type = self.ctx.i64_type();
+                let float_type = self.ctx.f64_type();
+                let new_line_args = vec![Expr::Literal(Value::StringValue("\n".to_string()))];
+
+                match built_in {
+                    BuiltInType::Dec => {
+                        assert_size(built_in, args, 1)?;
+
+                        let (space, kind) = self.get_mem_space(&args[0], true)?;
+                        let loaded = self.bld.build_load(int_type, space, "for_int_load");
+                        let res: BasicValueEnum = match kind {
+                            Kind::Integer => {
+                                let one = int_type.const_int(1, true);
+                                self.bld
+                                    .build_int_sub(loaded.into_int_value(), one, "inc_int")
+                                    .into()
+                            }
+                            Kind::Float => {
+                                let one = float_type.const_float(1.0);
+                                self.bld
+                                    .build_float_sub(loaded.into_float_value(), one, "inc_float")
+                                    .into()
+                            }
+                            _ => return Err(MilaErr::AssignToDifferentType(kind.clone())),
+                        };
+                        self.bld.build_store(space, res);
+                        self.bld.build_load(int_type, space, "inc_final")
+                    }
+                    BuiltInType::Inc => {
+                        assert_size(built_in, args, 1)?;
+
+                        let (space, kind) = self.get_mem_space(&args[0], true)?;
+                        let loaded = self.bld.build_load(int_type, space, "for_int_load");
+                        let res: BasicValueEnum = match kind {
+                            Kind::Integer => {
+                                let one = int_type.const_int(1, true);
+                                self.bld
+                                    .build_int_add(loaded.into_int_value(), one, "inc_int")
+                                    .into()
+                            }
+                            Kind::Float => {
+                                let one = float_type.const_float(1.0);
+                                self.bld
+                                    .build_float_add(loaded.into_float_value(), one, "inc_float")
+                                    .into()
+                            }
+                            _ => return Err(MilaErr::AssignToDifferentType(kind.clone())),
+                        };
+                        self.bld.build_store(space, res);
+                        self.bld.build_load(int_type, space, "inc_final")
+                    }
+                    BuiltInType::Write => {
+                        assert_size(built_in, args, 1)?;
+                        let func = self.mdl.get_function(&built_in.fn_name()).unwrap();
+                        let args = [self.compile_expr(&args[0])?.into()]; 
+                        self.bld
+                            .build_indirect_call(
+                                func.get_type(),
+                                func.as_global_value().as_pointer_value(),
+                                &args,
+                                "write_call",
+                            )
+                            .try_as_basic_value()
+                            .left()
+                            .unwrap()
+                    }
+                    BuiltInType::WriteLine => {
+                        let res = self.compile_expr(&Expr::BuiltIn {
+                            kind: BuiltInType::Write,
+                            args: args.clone(),
+                        })?;
+                        self.compile_expr(&Expr::BuiltIn {
+                            kind: BuiltInType::Write,
+                            args: new_line_args,
+                        })?;
+                        res
+                    }
+                    BuiltInType::ReadLine => {
+                        assert_size(built_in, args, 1)?;
+                        let func = self.mdl.get_function(&built_in.fn_name()).unwrap();
+                        let args = [self.get_mem_space(&args[0], true)?.0.into()];
+                        self.bld
+                            .build_indirect_call(
+                                func.get_type(),
+                                func.as_global_value().as_pointer_value(),
+                                &args,
+                                "read_call",
+                            )
+                            .try_as_basic_value()
+                            .left()
+                            .unwrap()
+                    },
+                    BuiltInType::Print => {
+                        assert_size(built_in, args, 1)?;
+                        let func = self.mdl.get_function(&built_in.fn_name()).unwrap();
+                        let args = [self.compile_expr(&args[0])?.into()];
+                        self.bld
+                            .build_indirect_call(
+                                func.get_type(),
+                                func.as_global_value().as_pointer_value(),
+                                &args,
+                                "print_call",
+                            )
+                            .try_as_basic_value()
+                            .left()
+                            .unwrap()
+                    },
+                    BuiltInType::PrintLine => {
+                        let res = self.compile_expr(&Expr::BuiltIn {
+                            kind: BuiltInType::Print,
+                            args: args.clone(),
+                        })?;
+                        self.compile_expr(&Expr::BuiltIn {
+                            kind: BuiltInType::Write,
+                            args: new_line_args,
+                        })?;
+                        res
+                    }
+                }
+            }
             Expr::VarAccess(name) => {
                 let symbol = self.find_var_in_table(name, false)?;
                 self.bld

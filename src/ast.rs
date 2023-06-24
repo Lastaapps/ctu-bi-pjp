@@ -87,7 +87,7 @@ pub enum Expr {
 
     Literal(Value),
     FunCall { name: String, args: Vec<Expr> },
-    BuiltIn { name: BuiltInType, args: Vec<Expr> },
+    BuiltIn { kind: BuiltInType, args: Vec<Expr> },
     VarAccess(String),
     ArrayAccess(BExpr, BExpr),
 }

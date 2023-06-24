@@ -785,7 +785,7 @@ fn parse_built_in(parser: &mut Parser) -> Outcome<Expr> {
     {
         let args = parse_fun_args(parser)?;
         Expr::BuiltIn {
-            name: name,
+            kind: name,
             args: args,
         }
     } else {

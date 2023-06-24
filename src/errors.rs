@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::{
     ast::{Expr, Kind},
-    tokens::{Token, TokenInfo},
+    tokens::{Token, TokenInfo, BuiltInType},
 };
 
 #[derive(Clone)]
@@ -38,6 +38,7 @@ pub enum MilaErr {
     LogicOnIntOnly,
     FunctionNotDefined(String),
     ForIntOnly,
+    BuiltInWrongArgCount(BuiltInType, usize),
 }
 
 impl Display for MilaErr {
@@ -96,6 +97,7 @@ impl Display for MilaErr {
             Self::LogicOnIntOnly => write!(f, "Logic operations can be performed on integers only"),
             Self::FunctionNotDefined(name) => write!(f, "Function with name {name} is not defined"),
             Self::ForIntOnly => write!(f, "For can be used only with integer variables and values"),
+            Self::BuiltInWrongArgCount(kind, count) => write!(f, "Built in {:?} does not support {} args.", kind, count),
         }
     }
 }

@@ -22,12 +22,14 @@ use crate::{
     tokens::BuiltInType,
 };
 
+#[derive(Clone)]
 struct VarSymbol<'a> {
     kind: Kind,
     ptr: PointerValue<'a>,
     is_const: bool,
 }
 
+#[derive(Clone)]
 struct FunSymbol<'a> {
     declaration: Declaration,
     value: FunctionValue<'a>,
@@ -38,6 +40,7 @@ struct LLVM<'a> {
     mdl: Module<'a>,
     bld: Builder<'a>,
     address_space: AddressSpace,
+    mctx: MilaCtx<'a>,
 }
 
 struct MilaCtx<'a> {
@@ -123,7 +126,7 @@ impl Program {
     }
 
     pub fn compile(&self) -> Outcome<()> {
-        let mut mctx = MilaCtx {
+        let mctx = MilaCtx {
             symbols: vec![],
             functions: HashMap::new(),
             curr_function: None,
@@ -133,17 +136,18 @@ impl Program {
         let context = Context::create();
         let module = context.create_module(&self.name);
         let builder = context.create_builder();
-        let llvm = LLVM {
+        let mut llvm = LLVM {
             ctx: &context,
             mdl: module,
             bld: builder,
             address_space: AddressSpace::from(42),
+            mctx: mctx,
         };
         // check vars/constants duplicates
         self.find_duplicate_names_vars_constants()?;
         self.find_invalid_functions()?;
 
-        llvm.compile_step_2(&mut mctx, self)?;
+        llvm.compile_step_2(self)?;
 
         llvm.mdl.verify().unwrap();
 
@@ -152,12 +156,10 @@ impl Program {
 }
 
 impl<'a> LLVM<'a> {
-    fn compile_step_2(&self, mctx: &'a mut MilaCtx<'a>, prog: &Program) -> Outcome<()> {
-        let llvm = self;
-
+    fn compile_step_2(&mut self, prog: &Program) -> Outcome<()> {
         let mut root_map = HashMap::new();
         for var in prog.scope.vars.iter() {
-            let ptr = llvm.compile_global_variable(var)?;
+            let ptr = self.compile_global_variable(var)?;
             root_map.insert(
                 var.name.clone(),
                 VarSymbol {
@@ -178,11 +180,11 @@ impl<'a> LLVM<'a> {
                 },
             );
         }
-        mctx.symbols.push(root_map);
+        self.mctx.symbols.push(root_map);
 
         for declaration in prog.scope.declarations.iter() {
             self.declare_function(declaration);
-            mctx.functions.insert(
+            self.mctx.functions.insert(
                 declaration.name.clone(),
                 FunSymbol {
                     declaration: declaration.clone(),
@@ -193,26 +195,26 @@ impl<'a> LLVM<'a> {
         self.declare_builtin_functions();
 
         for function in prog.scope.functions.iter() {
-            self.compile_function(mctx, function);
+            self.compile_function(function);
         }
 
-        self.compile_main(mctx, &prog.scope.main);
+        self.compile_main(&prog.scope.main);
 
         Ok(())
     }
 
     fn find_var_in_table(
-        mctx: &'a MilaCtx<'a>,
+        &mut self,
         name: &str,
         for_write: bool,
-    ) -> Outcome<&'a VarSymbol<'a>> {
-        for map in mctx.symbols.iter().rev() {
+    ) -> Outcome<VarSymbol<'a>> {
+        for map in self.mctx.symbols.iter().rev() {
             match map.get(name) {
                 Some(symbol) => {
                     return if symbol.is_const && for_write {
                         Err(MilaErr::CannotChangeConstantVariable(name.to_string()))
                     } else {
-                        Ok(symbol)
+                        Ok(symbol.clone())
                     }
                 }
                 None => {}
@@ -262,7 +264,7 @@ impl<'a> LLVM<'a> {
 
     fn declare_function(&self, function: &Declaration) -> Outcome<FunctionValue<'a>> {
         let mut args = vec![];
-        for arg in function.params {
+        for arg in function.params.iter() {
             args.push(self.kind_to_llvm(&arg.kind)?.into());
         }
         let args = args;
@@ -304,17 +306,17 @@ impl<'a> LLVM<'a> {
             .as_pointer_value())
     }
 
-    fn compile_statement(&self, mctx: &'a MilaCtx<'a>, statement: &Statement) -> Outcome<()> {
+    fn compile_statement(&mut self, statement: &Statement) -> Outcome<()> {
         match statement {
             Statement::Block { statements } => todo!(),
             Statement::ExprWrapper(expr) => {
-                self.compile_expr(mctx, expr)?
+                self.compile_expr(expr)?
                     .as_instruction_value()
                     .unwrap();
             }
             Statement::Assign { space, expr } => {
-                let value = self.compile_expr(mctx, expr)?;
-                let (space, kind) = self.get_mem_space(mctx, space, true)?;
+                let value = self.compile_expr(expr)?;
+                let (space, kind) = self.get_mem_space(space, true)?;
                 let casted = self.try_cast_into_kind(value, &kind)?;
                 self.bld.build_store(space, casted.as_basic_value_enum());
             }
@@ -332,12 +334,12 @@ impl<'a> LLVM<'a> {
                 let follow_cb = self.ctx.append_basic_block(parent_func, "for_follow");
 
                 let (space, kind) =
-                    self.get_mem_space(mctx, &Expr::VarAccess(var_name.to_string()), true)?;
+                    self.get_mem_space(&Expr::VarAccess(var_name.to_string()), true)?;
                 if kind != Kind::Integer {
                     return Err(MilaErr::ForIntOnly);
                 }
 
-                let from = self.compile_expr(mctx, from)?;
+                let from = self.compile_expr(from)?;
                 if !from.is_int_value() {
                     return Err(MilaErr::ForIntOnly);
                 }
@@ -346,7 +348,7 @@ impl<'a> LLVM<'a> {
                 self.bld.build_unconditional_branch(cond_cb);
                 self.bld.position_at_end(cond_cb);
 
-                let to = self.compile_expr(mctx, to)?;
+                let to = self.compile_expr(to)?;
                 let to = if !to.is_int_value() {
                     return Err(MilaErr::ForIntOnly);
                 } else {
@@ -364,7 +366,7 @@ impl<'a> LLVM<'a> {
                 self.bld.build_conditional_branch(cond, body_cb, follow_cb);
 
                 self.bld.position_at_end(body_cb);
-                self.compile_statement(mctx, &scope);
+                self.compile_statement(&scope);
                 self.bld.build_unconditional_branch(cond_cb);
 
                 self.bld.position_at_end(follow_cb);
@@ -379,7 +381,7 @@ impl<'a> LLVM<'a> {
                 self.bld.build_unconditional_branch(cond_cb);
                 self.bld.position_at_end(cond_cb);
 
-                let cond = self.compile_expr(mctx, cond)?;
+                let cond = self.compile_expr(cond)?;
                 let cond = self
                     .try_cast_into_kind(cond, &Kind::Integer)?
                     .as_basic_value_enum()
@@ -387,7 +389,7 @@ impl<'a> LLVM<'a> {
                 self.bld.build_conditional_branch(cond, body_cb, follow_cb);
 
                 self.bld.position_at_end(body_cb);
-                self.compile_statement(mctx, &scope);
+                self.compile_statement(&scope);
                 self.bld.build_unconditional_branch(cond_cb);
 
                 self.bld.position_at_end(follow_cb);
@@ -398,7 +400,7 @@ impl<'a> LLVM<'a> {
                 let if_true_cb = self.ctx.append_basic_block(parent_func, "if_true");
                 let follow_cb = self.ctx.append_basic_block(parent_func, "if_follow");
 
-                let cond = self.compile_expr(mctx, cond)?;
+                let cond = self.compile_expr(cond)?;
                 let cond = self
                     .try_cast_into_kind(cond, &Kind::Integer)?
                     .as_basic_value_enum()
@@ -408,7 +410,7 @@ impl<'a> LLVM<'a> {
                     .build_conditional_branch(cond, if_true_cb, follow_cb);
 
                 self.bld.position_at_end(if_true_cb);
-                self.compile_statement(mctx, &true_branch);
+                self.compile_statement(&true_branch);
                 self.bld.build_unconditional_branch(follow_cb);
 
                 self.bld.position_at_end(follow_cb);
@@ -424,7 +426,7 @@ impl<'a> LLVM<'a> {
                 let if_false_cb = self.ctx.append_basic_block(parent_func, "if_false");
                 let follow_cb = self.ctx.append_basic_block(parent_func, "if_follow");
 
-                let cond = self.compile_expr(mctx, cond)?;
+                let cond = self.compile_expr(cond)?;
                 let cond = if cond.is_int_value() {
                     cond.into_int_value()
                 } else {
@@ -437,27 +439,27 @@ impl<'a> LLVM<'a> {
                     .build_conditional_branch(cond, if_true_cb, if_false_cb);
 
                 self.bld.position_at_end(if_true_cb);
-                self.compile_statement(mctx, &true_branch);
+                self.compile_statement(&true_branch);
                 self.bld.build_unconditional_branch(follow_cb);
 
                 self.bld.position_at_end(if_false_cb);
-                self.compile_statement(mctx, &false_branch);
+                self.compile_statement(&false_branch);
                 self.bld.build_unconditional_branch(follow_cb);
 
                 self.bld.position_at_end(follow_cb);
             }
             Statement::Exit => {
-                let (name, kind) = mctx.curr_function.as_ref().unwrap();
-                if (kind == &Kind::Void) {
+                let (name, kind) = self.mctx.curr_function.as_ref().unwrap().clone();
+                if kind == Kind::Void {
                     self.bld.build_return(None);
                 } else {
                     let (space, _) =
-                        self.get_mem_space(mctx, &Expr::VarAccess(name.clone()), false)?;
+                        self.get_mem_space(&Expr::VarAccess(name.clone()), false)?;
                     let value = self
                         .bld
                         .build_load(self.kind_to_llvm(&kind)?, space, "exit_load");
                     self.bld
-                        .build_return(Some(&*self.try_cast_into_kind(value, kind)?));
+                        .build_return(Some(&*self.try_cast_into_kind(value, &kind)?));
                 }
                 todo!()
             }
@@ -466,7 +468,7 @@ impl<'a> LLVM<'a> {
     }
 
     fn cast_to_same(
-        &self,
+        &mut self,
         lhs: BasicValueEnum<'a>,
         rhs: BasicValueEnum<'a>,
         name: &str,
@@ -510,11 +512,11 @@ impl<'a> LLVM<'a> {
         Ok(ValuePair::FloatPair(lhs, rhs))
     }
 
-    fn compile_expr(&self, mctx: &'a MilaCtx<'a>, expr: &Expr) -> Outcome<BasicValueEnum<'a>> {
+    fn compile_expr(&mut self, expr: &Expr) -> Outcome<BasicValueEnum<'a>> {
         Ok(match expr {
             Expr::Add(lhs, rhs) => {
-                let lhs = self.compile_expr(mctx, lhs)?;
-                let rhs = self.compile_expr(mctx, rhs)?;
+                let lhs = self.compile_expr(lhs)?;
+                let rhs = self.compile_expr(rhs)?;
 
                 match self.cast_to_same(lhs, rhs, "add")? {
                     ValuePair::IntPair(lhs, rhs) => {
@@ -526,8 +528,8 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Sub(lhs, rhs) => {
-                let lhs = self.compile_expr(mctx, lhs)?;
-                let rhs = self.compile_expr(mctx, rhs)?;
+                let lhs = self.compile_expr(lhs)?;
+                let rhs = self.compile_expr(rhs)?;
 
                 match self.cast_to_same(lhs, rhs, "sub")? {
                     ValuePair::IntPair(lhs, rhs) => self.bld.build_int_sub(lhs, rhs, "int").into(),
@@ -537,8 +539,8 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Mul(lhs, rhs) => {
-                let lhs = self.compile_expr(mctx, lhs)?;
-                let rhs = self.compile_expr(mctx, rhs)?;
+                let lhs = self.compile_expr(lhs)?;
+                let rhs = self.compile_expr(rhs)?;
 
                 match self.cast_to_same(lhs, rhs, "mul")? {
                     ValuePair::IntPair(lhs, rhs) => {
@@ -550,8 +552,8 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Div(lhs, rhs) => {
-                let lhs = self.compile_expr(mctx, lhs)?;
-                let rhs = self.compile_expr(mctx, rhs)?;
+                let lhs = self.compile_expr(lhs)?;
+                let rhs = self.compile_expr(rhs)?;
 
                 match self.cast_to_same(lhs, rhs, "div")? {
                     ValuePair::IntPair(lhs, rhs) => {
@@ -563,8 +565,8 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Mod(lhs, rhs) => {
-                let lhs = self.compile_expr(mctx, lhs)?;
-                let rhs = self.compile_expr(mctx, rhs)?;
+                let lhs = self.compile_expr(lhs)?;
+                let rhs = self.compile_expr(rhs)?;
 
                 match self.cast_to_same(lhs, rhs, "mod")? {
                     ValuePair::IntPair(lhs, rhs) => {
@@ -576,8 +578,8 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Gt(lhs, rhs) => {
-                let lhs = self.compile_expr(mctx, lhs, )?;
-                let rhs = self.compile_expr(mctx, rhs, )?;
+                let lhs = self.compile_expr(lhs, )?;
+                let rhs = self.compile_expr(rhs, )?;
 
                 match self.cast_to_same(lhs, rhs, "gt")? {
                     ValuePair::IntPair(lhs, rhs) => self
@@ -591,8 +593,8 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Ge(lhs, rhs) => {
-                let lhs = self.compile_expr( mctx,lhs,)?;
-                let rhs = self.compile_expr( mctx,rhs,)?;
+                let lhs = self.compile_expr(lhs,)?;
+                let rhs = self.compile_expr(rhs,)?;
 
                 match self.cast_to_same(lhs, rhs, "ge")? {
                     ValuePair::IntPair(lhs, rhs) => self
@@ -606,8 +608,8 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Lt(lhs, rhs) => {
-                let lhs = self.compile_expr( mctx, lhs,)?;
-                let rhs = self.compile_expr( mctx, rhs,)?;
+                let lhs = self.compile_expr( lhs,)?;
+                let rhs = self.compile_expr( rhs,)?;
 
                 match self.cast_to_same(lhs, rhs, "lt")? {
                     ValuePair::IntPair(lhs, rhs) => self
@@ -621,8 +623,8 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Le(lhs, rhs) => {
-                let lhs = self.compile_expr( mctx, lhs,)?;
-                let rhs = self.compile_expr( mctx, rhs,)?;
+                let lhs = self.compile_expr( lhs,)?;
+                let rhs = self.compile_expr( rhs,)?;
 
                 match self.cast_to_same(lhs, rhs, "le")? {
                     ValuePair::IntPair(lhs, rhs) => self
@@ -636,8 +638,8 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Eq(lhs, rhs) => {
-                let lhs = self.compile_expr(mctx, lhs, )?;
-                let rhs = self.compile_expr(mctx, rhs, )?;
+                let lhs = self.compile_expr(lhs, )?;
+                let rhs = self.compile_expr(rhs, )?;
 
                 match self.cast_to_same(lhs, rhs, "eq")? {
                     ValuePair::IntPair(lhs, rhs) => self
@@ -651,8 +653,8 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Ne(lhs, rhs) => {
-                let lhs = self.compile_expr(mctx, lhs, )?;
-                let rhs = self.compile_expr(mctx, rhs, )?;
+                let lhs = self.compile_expr(lhs, )?;
+                let rhs = self.compile_expr(rhs, )?;
 
                 match self.cast_to_same(lhs, rhs, "ne")? {
                     ValuePair::IntPair(lhs, rhs) => self
@@ -666,8 +668,8 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::And(lhs, rhs) => {
-                let lhs = self.compile_expr( mctx, lhs,)?;
-                let rhs = self.compile_expr( mctx, rhs,)?;
+                let lhs = self.compile_expr( lhs,)?;
+                let rhs = self.compile_expr( rhs,)?;
                 if !lhs.is_int_value() || !rhs.is_int_value() {
                     return Err(MilaErr::LogicOnIntOnly);
                 }
@@ -676,8 +678,8 @@ impl<'a> LLVM<'a> {
                     .into()
             }
             Expr::Or(lhs, rhs) => {
-                let lhs = self.compile_expr(mctx, lhs, )?;
-                let rhs = self.compile_expr(mctx, rhs, )?;
+                let lhs = self.compile_expr(lhs, )?;
+                let rhs = self.compile_expr(rhs, )?;
                 if !lhs.is_int_value() || !rhs.is_int_value() {
                     return Err(MilaErr::LogicOnIntOnly);
                 }
@@ -696,11 +698,11 @@ impl<'a> LLVM<'a> {
             Expr::FunCall { name, args } => {
                 let mut lowered = vec![];
                 for expr in args.iter() {
-                    lowered.push(self.compile_expr(mctx, expr)?.into());
+                    lowered.push(self.compile_expr(expr)?.into());
                 }
                 let args = lowered;
 
-                let fun = mctx
+                let fun = self.mctx
                     .functions
                     .get(name)
                     .ok_or_else(|| MilaErr::FunctionNotDefined(name.clone()))?;
@@ -714,12 +716,12 @@ impl<'a> LLVM<'a> {
             }
             Expr::BuiltIn { name, args } => todo!(),
             Expr::VarAccess(name) => {
-                let symbol = LLVM::find_var_in_table(mctx, name, false)?;
+                let symbol = self.find_var_in_table(name, false)?;
                 self.bld
                     .build_load(self.kind_to_llvm(&symbol.kind)?, symbol.ptr, name)
             }
             Expr::ArrayAccess(store, _) => {
-                let arr_ptr = self.get_mem_space(mctx, expr, false)?.0;
+                let arr_ptr = self.get_mem_space(expr, false)?.0;
                 self.bld
                     .build_load(arr_ptr.get_type(), arr_ptr, "array read")
             }
@@ -727,26 +729,25 @@ impl<'a> LLVM<'a> {
     }
 
     fn get_mem_space(
-        &self,
-        mctx: &'a MilaCtx<'a>,
+        &mut self,
         expr: &Expr,
         is_write: bool,
     ) -> Outcome<(PointerValue<'a>, Kind)> {
         Ok(match expr {
             // Expr::FunCall { name, args } => todo!(),
             Expr::VarAccess(name) => {
-                let symbol = LLVM::find_var_in_table(mctx, name, is_write)?;
+                let symbol = self.find_var_in_table(name, is_write)?;
                 (symbol.ptr, symbol.kind.clone())
             }
             Expr::ArrayAccess(store, index) => {
-                let index = self.compile_expr(mctx, index, )?;
+                let index = self.compile_expr(index, )?;
                 let index = if index.is_int_value() {
                     index.into_int_value()
                 } else {
                     return Err(MilaErr::CannotIndexWithNonInteger);
                 };
 
-                let (dest, kind) = self.get_mem_space(mctx, store, is_write)?;
+                let (dest, kind) = self.get_mem_space(store, is_write)?;
 
                 let (subkind, index) = match kind {
                     Kind::Array(subkind, from, _) => {
@@ -781,11 +782,12 @@ impl<'a> LLVM<'a> {
         })
     }
 
-    fn compile_function(&self, mctx: &'a mut MilaCtx<'a>, function: &Function) -> Outcome<()> {
-        let fun_symbol = mctx
+    fn compile_function(&mut self, function: &Function) -> Outcome<()> {
+        let fun_symbol = self.mctx
             .functions
             .get(&function.name)
-            .ok_or_else(|| MilaErr::FunctionNotDefined(function.name.clone()))?;
+            .ok_or_else(|| MilaErr::FunctionNotDefined(function.name.clone()))?
+            .clone();
         let declaration = &fun_symbol.declaration;
 
         let fun = self.mdl.get_function(&declaration.mangle_name()).unwrap();
@@ -816,12 +818,12 @@ impl<'a> LLVM<'a> {
             },
         );
 
-        mctx.symbols.push(vars);
-        mctx.curr_function = Some((declaration.name.clone(), declaration.return_type.clone()));
+        self.mctx.symbols.push(vars);
+        self.mctx.curr_function = Some((declaration.name.clone(), declaration.return_type.clone()));
 
-        let bb = self.ctx.append_basic_block(fun, "fun_compilation");
+        let _bb = self.ctx.append_basic_block(fun, "fun_compilation");
 
-        let _instruction = self.compile_statement(mctx, &function.statement)?;
+        let _instruction = self.compile_statement(&function.statement)?;
 
         // fallback return
         let _return_val = if declaration.return_type == Kind::Void {
@@ -832,13 +834,13 @@ impl<'a> LLVM<'a> {
             self.bld.build_return(Some(&*to_return))
         };
 
-        mctx.symbols.pop();
-        mctx.curr_function = None;
+        self.mctx.symbols.pop();
+        self.mctx.curr_function = None;
 
         return Ok(());
     }
 
-    fn compile_main(&self, mctx: &'a mut MilaCtx<'a>, statement: &Statement) -> Outcome<()> {
+    fn compile_main(&mut self, statement: &Statement) -> Outcome<()> {
         let name = MAIN_NAME.to_string();
         let mut vars = HashMap::new();
         let return_alloc = self
@@ -852,8 +854,8 @@ impl<'a> LLVM<'a> {
                 is_const: false,
             },
         );
-        mctx.symbols.push(vars);
-        mctx.curr_function = Some((name.clone(), Kind::Integer));
+        self.mctx.symbols.push(vars);
+        self.mctx.curr_function = Some((name.clone(), Kind::Integer));
 
         let main_function  =
             self.mdl
@@ -861,13 +863,13 @@ impl<'a> LLVM<'a> {
         let entry = self.ctx.append_basic_block(main_function, "main_block");
         self.bld.position_at_end(entry);
 
-        let _instruction = self.compile_statement(mctx, &statement)?;
+        let _instruction = self.compile_statement(&statement)?;
         // fallback return
         self.bld
             .build_return(Some(&self.ctx.i64_type().const_int(42, false)));
 
-        mctx.symbols.pop();
-        mctx.curr_function = None;
+        self.mctx.symbols.pop();
+        self.mctx.curr_function = None;
 
         return Ok(());
     }
@@ -876,9 +878,8 @@ impl<'a> LLVM<'a> {
         &self,
         value: BasicValueEnum<'a>,
         kind: &Kind,
-    ) -> Outcome<Box<dyn BasicValue>> {
-        let type_id = value.get_type().type_id();
-        if self.kind_to_llvm(&kind)?.type_id() == type_id {
+    ) -> Outcome<Box<dyn BasicValue<'a> + 'a>> {
+        if self.kind_to_llvm(&kind)? == value.get_type() {
             let value: Box<dyn BasicValue> = match kind {
                 Kind::Integer => Box::new(value.into_int_value()),
                 Kind::Float => Box::new(value.into_float_value()),

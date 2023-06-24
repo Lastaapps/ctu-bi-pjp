@@ -1,12 +1,12 @@
-use std::{process, env, io::Read, path::Path, fs::File};
+use std::{env, fs::File, io::Read, path::Path, process};
 
 use base::Outcome;
 use errors::MilaErr;
-use inkwell::context::Context;
+
 use lexer::{Lexer, LexerItr};
 use parser::Parser;
 
-use crate::tokens::Token;
+
 
 mod ast;
 mod base;
@@ -31,8 +31,8 @@ fn stdin_iter() -> Outcome<LexerItr> {
     let mut buff = String::new();
 
     std::io::stdin()
-    .read_to_string(&mut buff)
-    .map_err(|err| MilaErr::ReadStdInFailed(err.to_string()))?;
+        .read_to_string(&mut buff)
+        .map_err(|err| MilaErr::ReadStdInFailed(err.to_string()))?;
 
     modify_buffer(&mut buff);
 
@@ -54,11 +54,11 @@ fn file_iter(names: Vec<String>) -> Outcome<LexerItr> {
         };
 
         file.read_to_string(&mut buff)
-            .map_err(|err| {MilaErr::ReadFileFailed(err.to_string(), name)})?;
-    };
+            .map_err(|err| MilaErr::ReadFileFailed(err.to_string(), name))?;
+    }
 
     modify_buffer(&mut buff);
-    
+
     let itr = buff.chars().collect::<Vec<_>>().into_iter();
     let peekable = itr.peekable();
     Ok(peekable)
@@ -69,20 +69,25 @@ fn run_mila(mode: AppMode) -> Outcome<()> {
         AppMode::StdIn => stdin_iter(),
         AppMode::File(names) => file_iter(names),
     }?;
-    let mut lexer = <dyn Lexer>::factory(iter)?;
+    let lexer = <dyn Lexer>::factory(iter)?;
 
-    loop {
-        let token = lexer.next_token()?;
-        println!("{token}");
-        if token.token == Token::EOF {
-            break;
-        };
-    };
-    return Ok(());
+    // TODO cli args
+
+    // loop {
+    //     let token = lexer.next_token()?;
+    //     println!("{token}");
+    //     if token.token == Token::EOF {
+    //         break;
+    //     };
+    // };
+    // return Ok(());
 
     let mut parser = Parser::factory(lexer);
     let ast = parser.parse_ast()?;
-    println!("{:?}", ast);
+    // println!("{:?}", ast);
+    // return Ok(());
+
+    println!("{}", ast.compile()?);
 
     Ok(())
 }
@@ -100,9 +105,10 @@ fn main() {
     match run_mila(mode) {
         Err(e) => {
             eprintln!("Compilation failed: {e}");
+            eprintln!("They got the Ring! Our age is over.");
             process::exit(42);
-        },
-        _ => {},
+        }
+        _ => {}
     }
 
     eprintln!("It's over Mr. Frodo. It's done!");

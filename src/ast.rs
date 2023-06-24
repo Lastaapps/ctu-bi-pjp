@@ -1,6 +1,5 @@
 use crate::tokens::BuiltInType;
 
-
 #[derive(Debug, PartialEq, Clone)]
 pub enum Kind {
     Integer,
@@ -43,7 +42,7 @@ pub struct Scope {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Variable{
+pub struct Variable {
     pub name: String,
     pub kind: Kind,
 }
@@ -77,24 +76,18 @@ pub enum Expr {
     Mul(BExpr, BExpr),
     Div(BExpr, BExpr),
     Mod(BExpr, BExpr),
-    Gt (BExpr, BExpr),
-    Ge (BExpr, BExpr),
-    Lt (BExpr, BExpr),
-    Le (BExpr, BExpr),
-    Eq (BExpr, BExpr),
-    Ne (BExpr, BExpr),
+    Gt(BExpr, BExpr),
+    Ge(BExpr, BExpr),
+    Lt(BExpr, BExpr),
+    Le(BExpr, BExpr),
+    Eq(BExpr, BExpr),
+    Ne(BExpr, BExpr),
     And(BExpr, BExpr),
-    Or (BExpr, BExpr),
+    Or(BExpr, BExpr),
 
     Literal(Value),
-    FunCall{
-        name: String,
-        args: Vec<Expr>,
-    },
-    BuiltIn{
-        name: BuiltInType,
-        args: Vec<Expr>,
-    },
+    FunCall { name: String, args: Vec<Expr> },
+    BuiltIn { name: BuiltInType, args: Vec<Expr> },
     VarAccess(String),
     ArrayAccess(BExpr, BExpr),
 }
@@ -105,7 +98,7 @@ pub enum Statement {
         statements: Vec<Statement>,
     },
     ExprWrapper(Expr),
-    Assign{
+    Assign {
         space: Expr,
         expr: Expr,
     },

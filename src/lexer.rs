@@ -1,10 +1,13 @@
-
 use core::panic;
-use std::{vec::IntoIter, iter::Peekable};
+use std::{iter::Peekable, vec::IntoIter};
 
 use either::Either::{self, Left, Right};
 
-use crate::{tokens::{TokenInfo, Token, OperatorType, BracketInfo, KeywordType, BuiltInType}, base::Outcome, errors::MilaErr};
+use crate::{
+    base::Outcome,
+    errors::MilaErr,
+    tokens::{BracketInfo, BuiltInType, KeywordType, OperatorType, Token, TokenInfo},
+};
 
 pub trait Lexer {
     fn next_token(&mut self) -> Outcome<TokenInfo>;
@@ -25,7 +28,10 @@ impl dyn Lexer {
 }
 
 enum NumBase {
-    Bin, Oct, Dec, Hex,
+    Bin,
+    Oct,
+    Dec,
+    Hex,
 }
 impl NumBase {
     fn is_valid(&self, c: &char) -> bool {
@@ -33,23 +39,22 @@ impl NumBase {
             Self::Bin => ('0'..='1').contains(c),
             Self::Oct => ('0'..='7').contains(c),
             Self::Dec => ('0'..='9').contains(c),
-            Self::Hex => 
-                match c {
-                    '0'..='9' | 'a'..='f' | 'A'..='F' => true,
-                    _ => false,
-                }
+            Self::Hex => match c {
+                '0'..='9' | 'a'..='f' | 'A'..='F' => true,
+                _ => false,
+            },
         }
     }
     fn add_digit_to_num(&self, num: u64, c: char) -> u64 {
         match self {
-            Self::Bin => num * 2  + (c as u8 - b'0') as u64,
-            Self::Oct => num * 8  + (c as u8 - b'0') as u64,
+            Self::Bin => num * 2 + (c as u8 - b'0') as u64,
+            Self::Oct => num * 8 + (c as u8 - b'0') as u64,
             Self::Dec => num * 10 + (c as u8 - b'0') as u64,
             Self::Hex => match c {
                 '0'..='9' => num * 16 + (c as u8 - b'0') as u64,
                 'a'..='f' => num * 16 + (c as u8 - b'a') as u64,
                 'A'..='F' => num * 16 + (c as u8 - b'A') as u64,
-                _ => panic!("Non-valid char passed")
+                _ => panic!("Non-valid char passed"),
             },
         }
     }
@@ -64,9 +69,12 @@ impl NumBase {
 }
 
 impl LexerImpl {
-
     fn new(iter: LexerItr) -> Outcome<Self> {
-        Ok(Self {itr: iter, line: 1, col: 0})
+        Ok(Self {
+            itr: iter,
+            line: 1,
+            col: 0,
+        })
     }
 
     fn next(&mut self) -> Option<char> {
@@ -88,10 +96,17 @@ impl LexerImpl {
     }
 
     fn err_eof(&self) -> MilaErr {
-        MilaErr::EOFReached { line: self.line, col: self.col}
+        MilaErr::EOFReached {
+            line: self.line,
+            col: self.col,
+        }
     }
     fn err_char(&self, c: char) -> MilaErr {
-        MilaErr::UnexpectedChar { c: c, line: self.line, col: self.col}
+        MilaErr::UnexpectedChar {
+            c: c,
+            line: self.line,
+            col: self.col,
+        }
     }
 
     fn match_keyword(keyword: String) -> Token {
@@ -122,7 +137,7 @@ impl LexerImpl {
             "to" => Token::Operator(OperatorType::To),
             "mod" => Token::Operator(OperatorType::Mod),
             "div" => Token::Operator(OperatorType::Div),
-            
+
             "dec" => Token::BuiltIn(BuiltInType::Dec),
             "inc" => Token::BuiltIn(BuiltInType::Inc),
             "write" => Token::BuiltIn(BuiltInType::Write),
@@ -131,12 +146,12 @@ impl LexerImpl {
             "print" => Token::BuiltIn(BuiltInType::Print),
             "println" => Token::BuiltIn(BuiltInType::PrintLine),
 
-            _ => Token::Identifier(keyword)
+            _ => Token::Identifier(keyword),
         }
     }
 
     fn process_identifier(&mut self) -> Outcome<Option<Token>> {
-        match self.peek(){
+        match self.peek() {
             Some(next) => next,
             None => return Ok(Some(Token::EOF)),
         };
@@ -157,10 +172,10 @@ impl LexerImpl {
             };
 
             is_first = false;
-        };
+        }
 
         if buff.len() == 0 {
-            return Ok(None)
+            return Ok(None);
         }
 
         buff = buff.to_lowercase();
@@ -177,12 +192,16 @@ impl LexerImpl {
             let next_opt = self.peek();
             let next = match next_opt {
                 Some(s) => s,
-                None => 
+                None => {
                     if !any_read {
-                        return Err(MilaErr::EOFReached { line: self.line, col: self.col });
-                    } else { 
-                        break 
-                    },
+                        return Err(MilaErr::EOFReached {
+                            line: self.line,
+                            col: self.col,
+                        });
+                    } else {
+                        break;
+                    }
+                }
             };
 
             if base.is_valid(&next) {
@@ -191,13 +210,17 @@ impl LexerImpl {
                 any_read = true;
             } else {
                 if !any_read {
-                    return Err(MilaErr::UnexpectedNumberEnd { c: next, line: self.line, col: self.col })
+                    return Err(MilaErr::UnexpectedNumberEnd {
+                        c: next,
+                        line: self.line,
+                        col: self.col,
+                    });
                 } else {
                     break;
                 }
             }
             self.progress();
-        };
+        }
         return Ok((acu, len));
     }
 
@@ -218,7 +241,6 @@ impl LexerImpl {
     }
 
     fn process_number(&mut self) -> Outcome<Option<Token>> {
-        
         let next_opt = self.peek();
         let next = match next_opt {
             Some(next) => next,
@@ -238,8 +260,7 @@ impl LexerImpl {
                 self.progress();
                 self.process_digits_in_base(NumBase::Hex)
             }
-            '0'..='9' =>
-                self.process_digits_in_base(NumBase::Dec),
+            '0'..='9' => self.process_digits_in_base(NumBase::Dec),
             _ => return Ok(None),
         }?;
         Ok(Some(match res {
@@ -286,7 +307,7 @@ impl LexerImpl {
                     '\\' => {
                         is_escaped = true;
                         continue;
-                    },
+                    }
                     '\'' => return Ok(Some(Token::String(buffer))),
                     _ => buffer.push(next),
                 }
@@ -308,14 +329,14 @@ impl LexerImpl {
                     '=' => {
                         self.progress();
                         Token::Operator(OperatorType::Assign)
-                    } ,
-                    _ => Token::Operator(OperatorType::Colon)
+                    }
+                    _ => Token::Operator(OperatorType::Colon),
                 }
-            },
+            }
             '=' => {
                 self.progress();
                 Token::Operator(OperatorType::Eq)
-            },
+            }
             '!' => {
                 self.progress();
                 let sec = self.peek().ok_or_else(|| self.err_eof())?;
@@ -323,11 +344,10 @@ impl LexerImpl {
                     '=' => {
                         self.progress();
                         Token::Operator(OperatorType::Ne)
-                    },
+                    }
                     _ => return Err(self.err_char(sec)),
-
                 }
-            },
+            }
             '>' => {
                 self.progress();
                 let sec = self.peek().ok_or_else(|| self.err_eof())?;
@@ -335,11 +355,10 @@ impl LexerImpl {
                     '=' => {
                         self.progress();
                         Token::Operator(OperatorType::Ge)
-                    },
-                    _ => Token::Operator(OperatorType::Gt)
-
+                    }
+                    _ => Token::Operator(OperatorType::Gt),
                 }
-            },
+            }
             '<' => {
                 self.progress();
                 let sec = self.peek().ok_or_else(|| self.err_eof())?;
@@ -347,39 +366,38 @@ impl LexerImpl {
                     '=' => {
                         self.progress();
                         Token::Operator(OperatorType::Le)
-                    },
+                    }
                     '>' => {
                         self.progress();
                         Token::Operator(OperatorType::Ne)
-                    },
-                    _ => Token::Operator(OperatorType::Lt)
-
+                    }
+                    _ => Token::Operator(OperatorType::Lt),
                 }
-            },
+            }
             '+' => {
                 self.progress();
                 Token::Operator(OperatorType::Plus)
-            },
+            }
             '-' => {
                 self.progress();
                 Token::Operator(OperatorType::Minus)
-            },
+            }
             '*' => {
                 self.progress();
                 Token::Operator(OperatorType::Mul)
-            },
+            }
             '/' => {
                 self.progress();
                 Token::Operator(OperatorType::Div)
-            },
+            }
             ',' => {
                 self.progress();
                 Token::Operator(OperatorType::Comma)
-            },
+            }
             ';' => {
                 self.progress();
                 Token::Operator(OperatorType::Semicolon)
-            },
+            }
             '.' => {
                 self.progress();
                 let sec = self.peek().ok_or_else(|| self.err_eof())?;
@@ -387,36 +405,42 @@ impl LexerImpl {
                     '.' => {
                         self.progress();
                         Token::Operator(OperatorType::Ranges)
-                    },
-                    _ => Token::Operator(OperatorType::Dot)
-
+                    }
+                    _ => Token::Operator(OperatorType::Dot),
                 }
-            },
+            }
             '(' => {
                 self.progress();
-                Token::Bracket(BracketInfo{sq: false, op: true})
-            },
+                Token::Bracket(BracketInfo {
+                    sq: false,
+                    op: true,
+                })
+            }
             ')' => {
                 self.progress();
-                Token::Bracket(BracketInfo{sq: false, op: false})
-            },
+                Token::Bracket(BracketInfo {
+                    sq: false,
+                    op: false,
+                })
+            }
             '[' => {
                 self.progress();
-                Token::Bracket(BracketInfo{sq: true, op: true})
-            },
+                Token::Bracket(BracketInfo { sq: true, op: true })
+            }
             ']' => {
                 self.progress();
-                Token::Bracket(BracketInfo{sq: true, op: false})
-            },
+                Token::Bracket(BracketInfo {
+                    sq: true,
+                    op: false,
+                })
+            }
             _ => return Ok(None),
         }))
     }
 }
 
 impl Lexer for LexerImpl {
-
     fn next_token(&mut self) -> Outcome<TokenInfo> {
-        
         // skip spaces
         loop {
             let next = self.peek();
@@ -426,41 +450,41 @@ impl Lexer for LexerImpl {
                         self.progress();
                         continue;
                     } else {
-                        break
+                        break;
                     }
                 }
-                None => break
+                None => break,
             }
-        };
+        }
 
         let line_col = (self.line, self.col);
 
         // dint't manage to write it using or_else
-        let res_token_opt = 
-            match self.process_operator_or_bracket()? {
+        let res_token_opt = match self.process_operator_or_bracket()? {
+            Some(token) => Some(token),
+            None => match self.process_number()? {
                 Some(token) => Some(token),
-                None => 
-                match self.process_number()? {
+                None => match self.process_identifier()? {
                     Some(token) => Some(token),
-                    None => 
-                    match self.process_identifier()? {
-                        Some(token) => Some(token),
-                        None => self.process_string()?,
-                    },
+                    None => self.process_string()?,
                 },
-            };
+            },
+        };
         let res_token = match res_token_opt {
             Some(token) => token,
             None => {
                 if self.peek() == None {
                     Token::EOF
                 } else {
-                    return Err(MilaErr::NoTokenMatched { line: self.line, col: self.col } )
+                    return Err(MilaErr::NoTokenMatched {
+                        line: self.line,
+                        col: self.col,
+                    });
                 }
             }
         };
 
-        Ok(TokenInfo{
+        Ok(TokenInfo {
             token: res_token,
             line: line_col.0,
             column: line_col.1,

@@ -1,5 +1,4 @@
-use std::fmt::{Display, Debug};
-
+use std::fmt::{Debug, Display};
 
 pub type KT = KeywordType;
 #[derive(Debug, PartialEq, Clone)]
@@ -45,10 +44,10 @@ pub enum OperatorType {
     Mul,
     Div,
     Mod,
-    Comma, // ,
+    Comma,     // ,
     Semicolon, // ;
-    Colon, // :
-    Dot, // .
+    Colon,     // :
+    Dot,       // .
 }
 
 pub type BI = BracketInfo;
@@ -72,14 +71,15 @@ impl Debug for BracketInfo {
     }
 }
 
-pub type BIT = BuiltInType;
 #[derive(Debug, PartialEq, Clone)]
 pub enum BuiltInType {
     Dec,
     Inc,
-    Write, WriteLine,
+    Write,
+    WriteLine,
     ReadLine,
-    Print, PrintLine,
+    Print,
+    PrintLine,
 }
 
 #[derive(Debug, PartialEq, Clone)]

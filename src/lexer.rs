@@ -276,9 +276,11 @@ impl LexerImpl {
             None => return Ok(Some(Token::EOF)),
         };
 
-        if next != '\'' {
+        let start = if next == '\'' || next == '\"' {
+            next.clone()
+        } else {
             return Ok(None);
-        }
+        };
         self.next();
 
         let mut is_escaped = false;
@@ -308,8 +310,12 @@ impl LexerImpl {
                         is_escaped = true;
                         continue;
                     }
-                    '\'' => return Ok(Some(Token::String(buffer))),
-                    _ => buffer.push(next),
+                    next => {
+                        if next == start {
+                            return Ok(Some(Token::String(buffer)));
+                        }
+                        buffer.push(next)
+                    },
                 }
             }
         }
@@ -484,10 +490,12 @@ impl Lexer for LexerImpl {
             }
         };
 
-        Ok(TokenInfo {
+        let info = TokenInfo {
             token: res_token,
             line: line_col.0,
             column: line_col.1,
-        })
+        };
+        eprintln!("{:?}", info);
+        Ok(info)
     }
 }

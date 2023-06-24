@@ -1,0 +1,5 @@
+program test_functions;
+
+begin
+    exit
+end.

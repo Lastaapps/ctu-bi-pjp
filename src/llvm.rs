@@ -6,8 +6,8 @@ use inkwell::{
     module::{Linkage, Module},
     types::{BasicType, BasicTypeEnum},
     values::{
-        BasicValue, BasicValueEnum, FloatValue, FunctionValue,
-        InstructionOpcode, IntValue, PointerValue,
+        BasicValue, BasicValueEnum, FloatValue, FunctionValue, InstructionOpcode, IntValue,
+        PointerValue,
     },
     AddressSpace, FloatPredicate, IntPredicate,
 };
@@ -19,14 +19,14 @@ use crate::{
     tokens::BuiltInType,
 };
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct VarSymbol<'a> {
     kind: Kind,
     ptr: PointerValue<'a>,
     is_const: bool,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct FunSymbol<'a> {
     declaration: Declaration,
     value: FunctionValue<'a>,
@@ -36,7 +36,6 @@ struct LLVM<'a> {
     ctx: &'a Context,
     mdl: Module<'a>,
     bld: Builder<'a>,
-    address_space: AddressSpace,
     mila: MilaCtx<'a>,
 }
 
@@ -89,8 +88,15 @@ impl Declaration {
     }
 }
 
+const TAG: &str = "llvm";
+fn log(msg: &str) {
+    eprintln!("{}: {}", TAG, msg)
+}
+
 impl Program {
     fn find_duplicate_names_vars_constants(&self) -> Outcome<()> {
+        log("Looking for duplicate var names");
+
         let mut names: HashSet<&String> = HashSet::new();
 
         for var in self.scope.vars.iter() {
@@ -99,6 +105,9 @@ impl Program {
             }
             names.insert(&var.name);
         }
+
+        log("Looking for duplicate const names");
+
         for constant in self.scope.constants.iter() {
             if names.contains(&constant.name) {
                 return Err(MilaErr::DuplicateGlobal(constant.name.clone()));
@@ -109,6 +118,8 @@ impl Program {
     }
 
     fn find_invalid_functions(&self) -> Outcome<()> {
+        log("Looking for duplicate fun defs");
+
         let mut names: HashSet<&String> = HashSet::new();
         let main_name = MAIN_NAME.to_string();
         names.insert(&main_name);
@@ -118,12 +129,24 @@ impl Program {
                 return Err(MilaErr::DuplicateFunName(declaration.name.clone()));
             }
             names.insert(&declaration.name);
+
+            // check for fun name and one of the params is the same
+            let mut names: HashSet<&String> = HashSet::new();
+            names.insert(&declaration.name);
+            for param in declaration.params.iter() {
+                if names.contains(&param.name) {
+                    return Err(MilaErr::DuplicateFunAndParamName(param.name.clone()));
+                }
+                names.insert(&param.name);
+            }
         }
 
         Ok(())
     }
 
     pub fn compile(&self) -> Outcome<String> {
+        log("Preparing llvm compilation");
+
         let mila = MilaCtx {
             symbols: vec![],
             functions: HashMap::new(),
@@ -138,9 +161,9 @@ impl Program {
             ctx: &context,
             mdl: module,
             bld: builder,
-            address_space: AddressSpace::from(42),
             mila: mila,
         };
+        log("Created compilation context");
 
         // check vars/constants duplicates
         self.find_duplicate_names_vars_constants()?;
@@ -148,6 +171,8 @@ impl Program {
 
         llvm.compile_step_2(self)?;
 
+        log("Starting verification");
+        llvm.mdl.print_to_stderr();
         llvm.mdl.verify().unwrap();
 
         Ok(llvm.mdl.print_to_string().to_string())
@@ -157,6 +182,7 @@ impl Program {
 impl<'a> LLVM<'a> {
     fn compile_step_2(&mut self, prog: &Program) -> Outcome<()> {
         let mut root_map = HashMap::new();
+        log("Creating global variables");
         for var in prog.scope.vars.iter() {
             let ptr = self.compile_global_variable(var)?;
             root_map.insert(
@@ -168,6 +194,7 @@ impl<'a> LLVM<'a> {
                 },
             );
         }
+        log("Creating global constants");
         for constant in prog.scope.constants.iter() {
             let ptr = self.compile_global_constant(constant)?;
             root_map.insert(
@@ -181,18 +208,22 @@ impl<'a> LLVM<'a> {
         }
         self.mila.symbols.push(root_map);
 
+        log("Declaring functions");
         for declaration in prog.scope.declarations.iter() {
-            self.declare_function(declaration)?;
+            let value = self.declare_function(declaration)?;
             self.mila.functions.insert(
                 declaration.name.clone(),
                 FunSymbol {
                     declaration: declaration.clone(),
-                    value: self.declare_function(declaration)?,
+                    value: value,
                 },
             );
         }
+
+        log("Declaring built in functions");
         self.declare_builtin_functions()?;
 
+        log("Compiling functions");
         for function in prog.scope.functions.iter() {
             self.compile_function(function)?;
         }
@@ -203,6 +234,8 @@ impl<'a> LLVM<'a> {
     }
 
     fn find_var_in_table(&mut self, name: &str, for_write: bool) -> Outcome<VarSymbol<'a>> {
+        log("Finding var in a table");
+        eprintln!("{:?}", self.mila.symbols);
         for map in self.mila.symbols.iter().rev() {
             match map.get(name) {
                 Some(symbol) => {
@@ -219,12 +252,13 @@ impl<'a> LLVM<'a> {
     }
 
     fn kind_to_llvm(&self, kind: &Kind) -> Outcome<BasicTypeEnum<'a>> {
+        log("Kind to llvm");
         Ok(match kind {
             Kind::Integer => self.ctx.i64_type().into(),
 
             Kind::Float => self.ctx.f64_type().into(),
 
-            Kind::String => self.ctx.i8_type().ptr_type(self.address_space).into(),
+            Kind::String => self.ctx.i8_type().ptr_type(AddressSpace::default()).into(),
 
             Kind::Array(t, from, to) => self
                 .kind_to_llvm(t)?
@@ -235,10 +269,25 @@ impl<'a> LLVM<'a> {
         })
     }
 
+    fn llvm_to_kind(&self, value: &BasicTypeEnum<'a>) -> Kind {
+        if value.is_int_type() {
+            Kind::Integer
+        } else if value.is_float_type() {
+            Kind::Float
+        } else if value.is_array_type() {
+            let element = self.llvm_to_kind(&value.into_array_type().get_element_type());
+            Kind::Array(Box::new(element), 0, 0)
+        } else if value.is_pointer_type() {
+            Kind::String
+        } else {
+            panic!("Unexpected llvm type")
+        }
+    }
+
     fn compile_global_constant(&self, constant: &Constant) -> Outcome<PointerValue<'a>> {
         let space = self.mdl.add_global(
             self.kind_to_llvm(&constant.val.to_type())?,
-            Some(self.address_space),
+            Some(AddressSpace::default()),
             &constant.name,
         );
 
@@ -271,7 +320,9 @@ impl<'a> LLVM<'a> {
                 .fn_type(args.as_slice(), false)
         };
 
-        Ok(self.mdl.add_function(&function.name, fn_type, None))
+        Ok(self
+            .mdl
+            .add_function(&function.mangle_name(), fn_type, None))
     }
 
     fn declare_builtin_functions(&self) -> Outcome<()> {
@@ -285,42 +336,61 @@ impl<'a> LLVM<'a> {
         // Write
         {
             let args = vec![self.kind_to_llvm(&Kind::String)?.into()];
-            let fun = self.ctx.void_type().fn_type(args.as_slice(), false);
+            let fun = self.ctx.i64_type().fn_type(args.as_slice(), false);
             self.mdl
                 .add_function(&BuiltInType::Write.fn_name(), fun, Some(Linkage::External));
         };
         // ReadLine
         {
-            let args = vec![self.ctx.i64_type().ptr_type(self.address_space).into()];
+            let args = vec![self.ctx.i64_type().ptr_type(AddressSpace::default()).into()];
             let fun = self.ctx.i64_type().fn_type(args.as_slice(), false);
-            self.mdl
-                .add_function(&BuiltInType::Write.fn_name(), fun, Some(Linkage::External));
+            self.mdl.add_function(
+                &BuiltInType::ReadLine.fn_name(),
+                fun,
+                Some(Linkage::External),
+            );
         };
         Ok(())
     }
 
     fn compile_global_variable(&self, var: &Variable) -> Outcome<PointerValue<'a>> {
-        Ok(self
-            .mdl
-            .add_global(
-                self.kind_to_llvm(&var.kind)?,
-                Some(self.address_space),
-                &var.name,
-            )
-            .as_pointer_value())
+        let space = self.mdl.add_global(
+            self.kind_to_llvm(&var.kind)?,
+            Some(AddressSpace::default()),
+            &var.name,
+        );
+
+        // haven't found an elegant way how to just take up the space
+        // without this being called inside the main code block
+        let value: BasicValueEnum = match &var.kind {
+            Kind::Integer => self.ctx.i64_type().const_int(0, true).into(),
+            Kind::Float => self.ctx.f64_type().const_float(0.0).into(),
+            Kind::String => {
+                let value = self.bld.build_global_string_ptr(&"", "const_string");
+                value.as_basic_value_enum()
+            }
+            kind => panic!("No other type is expected, not even {:?}", kind),
+        };
+
+        space.set_initializer(&value);
+
+        Ok(space.as_pointer_value())
     }
 
     fn compile_statement(&mut self, statement: &Statement) -> Outcome<()> {
         match statement {
             Statement::Block { statements } => {
+                log("Compiling block");
                 for statement in statements.iter() {
                     self.compile_statement(statement)?;
                 }
             }
             Statement::ExprWrapper(expr) => {
-                self.compile_expr(expr)?.as_instruction_value().unwrap();
+                log("Compile expr wrapper");
+                self.compile_expr(expr)?;
             }
             Statement::Assign { space, expr } => {
+                log("Compile assign");
                 let value = self.compile_expr(expr)?;
                 let (space, kind) = self.get_mem_space(space, true)?;
                 let casted = self.try_cast_into_kind(value, &kind)?;
@@ -333,6 +403,7 @@ impl<'a> LLVM<'a> {
                 is_to,
                 scope,
             } => {
+                log("Compile for");
                 let int_type = self.ctx.i64_type();
                 let prev_cb = self.bld.get_insert_block().unwrap();
                 let parent_func = prev_cb.get_parent().unwrap();
@@ -367,14 +438,17 @@ impl<'a> LLVM<'a> {
                     .build_load(self.ctx.i64_type(), space, "for_load")
                     .into_int_value();
 
+                log("For: cond");
                 let cond = self
                     .bld
                     .build_int_compare(IntPredicate::NE, current, to, "for_compare");
                 self.bld.build_conditional_branch(cond, body_cb, follow_cb);
 
+                log("For: body");
                 self.bld.position_at_end(body_cb);
                 self.compile_statement(&scope)?;
 
+                log("For - inc/dec");
                 // +- 1
                 let loaded = self
                     .bld
@@ -392,6 +466,7 @@ impl<'a> LLVM<'a> {
                 self.bld.position_at_end(follow_cb);
             }
             Statement::While { cond, scope } => {
+                log("Compiling while");
                 let prev_cb = self.bld.get_insert_block().unwrap();
                 let parent_func = prev_cb.get_parent().unwrap();
                 let cond_cb = self.ctx.append_basic_block(parent_func, "while_cond");
@@ -401,6 +476,7 @@ impl<'a> LLVM<'a> {
                 self.bld.build_unconditional_branch(cond_cb);
                 self.bld.position_at_end(cond_cb);
 
+                log("While: cond");
                 let cond = self.compile_expr(cond)?;
                 let cond = self
                     .try_cast_into_kind(cond, &Kind::Integer)?
@@ -408,6 +484,7 @@ impl<'a> LLVM<'a> {
                     .into_int_value();
                 self.bld.build_conditional_branch(cond, body_cb, follow_cb);
 
+                log("While: body");
                 self.bld.position_at_end(body_cb);
                 self.compile_statement(&scope)?;
                 self.bld.build_unconditional_branch(cond_cb);
@@ -415,11 +492,13 @@ impl<'a> LLVM<'a> {
                 self.bld.position_at_end(follow_cb);
             }
             Statement::If { cond, true_branch } => {
+                log("Compiling if");
                 let prev_cb = self.bld.get_insert_block().unwrap();
                 let parent_func = prev_cb.get_parent().unwrap();
                 let if_true_cb = self.ctx.append_basic_block(parent_func, "if_true");
                 let follow_cb = self.ctx.append_basic_block(parent_func, "if_follow");
 
+                log("if: cond");
                 let cond = self.compile_expr(cond)?;
                 let cond = self
                     .try_cast_into_kind(cond, &Kind::Integer)?
@@ -429,6 +508,7 @@ impl<'a> LLVM<'a> {
                 self.bld
                     .build_conditional_branch(cond, if_true_cb, follow_cb);
 
+                log("if: true");
                 self.bld.position_at_end(if_true_cb);
                 self.compile_statement(&true_branch)?;
                 self.bld.build_unconditional_branch(follow_cb);
@@ -440,12 +520,14 @@ impl<'a> LLVM<'a> {
                 true_branch,
                 false_branch,
             } => {
+                log("Compiling if-else");
                 let prev_cb = self.bld.get_insert_block().unwrap();
                 let parent_func = prev_cb.get_parent().unwrap();
                 let if_true_cb = self.ctx.append_basic_block(parent_func, "if_true");
                 let if_false_cb = self.ctx.append_basic_block(parent_func, "if_false");
                 let follow_cb = self.ctx.append_basic_block(parent_func, "if_follow");
 
+                log("if-else: cond");
                 let cond = self.compile_expr(cond)?;
                 let cond = if cond.is_int_value() {
                     cond.into_int_value()
@@ -458,10 +540,12 @@ impl<'a> LLVM<'a> {
                 self.bld
                     .build_conditional_branch(cond, if_true_cb, if_false_cb);
 
+                log("if-else: true branch");
                 self.bld.position_at_end(if_true_cb);
                 self.compile_statement(&true_branch)?;
                 self.bld.build_unconditional_branch(follow_cb);
 
+                log("if-else: false branch");
                 self.bld.position_at_end(if_false_cb);
                 self.compile_statement(&false_branch)?;
                 self.bld.build_unconditional_branch(follow_cb);
@@ -469,8 +553,13 @@ impl<'a> LLVM<'a> {
                 self.bld.position_at_end(follow_cb);
             }
             Statement::Exit => {
+                log("Compiling exit");
+                let prev_cb = self.bld.get_insert_block().unwrap();
+                let parent_func = prev_cb.get_parent().unwrap();
+                let follow_cb = self.ctx.append_basic_block(parent_func, "exit_follow");
+
                 let (name, kind) = self.mila.curr_function.as_ref().unwrap().clone();
-                if kind == Kind::Void {
+                let res = if kind == Kind::Void {
                     self.bld.build_return(None);
                 } else {
                     let (space, _) = self.get_mem_space(&Expr::VarAccess(name.clone()), false)?;
@@ -479,7 +568,9 @@ impl<'a> LLVM<'a> {
                         .build_load(self.kind_to_llvm(&kind)?, space, "exit_load");
                     self.bld
                         .build_return(Some(&*self.try_cast_into_kind(value, &kind)?));
-                }
+                };
+                self.bld.position_at_end(follow_cb);
+                res
             }
         };
         Ok(())
@@ -491,6 +582,8 @@ impl<'a> LLVM<'a> {
         rhs: BasicValueEnum<'a>,
         name: &str,
     ) -> Outcome<ValuePair<'a>> {
+        log("Casting to same");
+
         if lhs.is_int_value() && rhs.is_int_value() {
             return Ok(ValuePair::IntPair(
                 lhs.into_int_value(),
@@ -533,6 +626,7 @@ impl<'a> LLVM<'a> {
     fn compile_expr(&mut self, expr: &Expr) -> Outcome<BasicValueEnum<'a>> {
         Ok(match expr {
             Expr::Add(lhs, rhs) => {
+                log("Add");
                 let lhs = self.compile_expr(lhs)?;
                 let rhs = self.compile_expr(rhs)?;
 
@@ -546,6 +640,7 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Sub(lhs, rhs) => {
+                log("Sub");
                 let lhs = self.compile_expr(lhs)?;
                 let rhs = self.compile_expr(rhs)?;
 
@@ -557,6 +652,7 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Mul(lhs, rhs) => {
+                log("Mul");
                 let lhs = self.compile_expr(lhs)?;
                 let rhs = self.compile_expr(rhs)?;
 
@@ -570,6 +666,7 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Div(lhs, rhs) => {
+                log("Div");
                 let lhs = self.compile_expr(lhs)?;
                 let rhs = self.compile_expr(rhs)?;
 
@@ -583,6 +680,7 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Mod(lhs, rhs) => {
+                log("Mod");
                 let lhs = self.compile_expr(lhs)?;
                 let rhs = self.compile_expr(rhs)?;
 
@@ -596,6 +694,7 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Gt(lhs, rhs) => {
+                log("Gt");
                 let lhs = self.compile_expr(lhs)?;
                 let rhs = self.compile_expr(rhs)?;
 
@@ -611,6 +710,7 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Ge(lhs, rhs) => {
+                log("Ge");
                 let lhs = self.compile_expr(lhs)?;
                 let rhs = self.compile_expr(rhs)?;
 
@@ -626,6 +726,7 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Lt(lhs, rhs) => {
+                log("Lt");
                 let lhs = self.compile_expr(lhs)?;
                 let rhs = self.compile_expr(rhs)?;
 
@@ -641,6 +742,7 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Le(lhs, rhs) => {
+                log("Le");
                 let lhs = self.compile_expr(lhs)?;
                 let rhs = self.compile_expr(rhs)?;
 
@@ -656,6 +758,7 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Eq(lhs, rhs) => {
+                log("Eq");
                 let lhs = self.compile_expr(lhs)?;
                 let rhs = self.compile_expr(rhs)?;
 
@@ -671,6 +774,7 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::Ne(lhs, rhs) => {
+                log("Ne");
                 let lhs = self.compile_expr(lhs)?;
                 let rhs = self.compile_expr(rhs)?;
 
@@ -686,6 +790,7 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::And(lhs, rhs) => {
+                log("And");
                 let lhs = self.compile_expr(lhs)?;
                 let rhs = self.compile_expr(rhs)?;
                 if !lhs.is_int_value() || !rhs.is_int_value() {
@@ -696,6 +801,7 @@ impl<'a> LLVM<'a> {
                     .into()
             }
             Expr::Or(lhs, rhs) => {
+                log("Or");
                 let lhs = self.compile_expr(lhs)?;
                 let rhs = self.compile_expr(rhs)?;
                 if !lhs.is_int_value() || !rhs.is_int_value() {
@@ -705,15 +811,19 @@ impl<'a> LLVM<'a> {
                     .build_or(lhs.into_int_value(), rhs.into_int_value(), "and")
                     .into()
             }
-            Expr::Literal(value) => match value {
-                Value::IntValue(val) => self.ctx.i64_type().const_int(*val, true).into(),
-                Value::FloatValue(val) => self.ctx.f64_type().const_float(*val).into(),
-                Value::StringValue(val) => self
-                    .bld
-                    .build_global_string_ptr(val, "string_literal")
-                    .as_basic_value_enum(),
-            },
+            Expr::Literal(value) => {
+                log("Literal");
+                match value {
+                    Value::IntValue(val) => self.ctx.i64_type().const_int(*val, true).into(),
+                    Value::FloatValue(val) => self.ctx.f64_type().const_float(*val).into(),
+                    Value::StringValue(val) => self
+                        .bld
+                        .build_global_string_ptr(val, "string_literal")
+                        .as_basic_value_enum(),
+                }
+            }
             Expr::FunCall { name, args } => {
+                log("Fun call");
                 let mut lowered = vec![];
                 for expr in args.iter() {
                     lowered.push(self.compile_expr(expr)?.into());
@@ -727,15 +837,28 @@ impl<'a> LLVM<'a> {
                     .ok_or_else(|| MilaErr::FunctionNotDefined(name.clone()))?;
                 let mangled = fun.declaration.mangle_name();
 
-                let fun = self.mdl.get_function(&mangled).unwrap();
+                let fun_value= self.mdl.get_function(&mangled).unwrap();
 
-                self.bld
-                    .build_direct_call(fun, args.as_slice(), "function_call")
+                let call_site = self.bld
+                    .build_direct_call(fun_value, args.as_slice(), "function_call");
+                if fun.declaration.return_type != Kind::Void {
+                    call_site
                     .try_as_basic_value()
                     .left()
                     .unwrap()
+                } else {
+                    // Would require some kind of trickery
+                    // Perfect solution would be if the procedures
+                    // were statements and ExprWrapper has some kind
+                    // of detector for it. But this is nice enough
+                    self.ctx.i64_type().const_int(42, true).into()
+                }
             }
-            Expr::BuiltIn { kind: built_in, args } => {
+            Expr::BuiltIn {
+                kind: built_in,
+                args,
+            } => {
+                log("Built in");
                 fn assert_size<T>(
                     built_in: &BuiltInType,
                     args: &Vec<T>,
@@ -771,7 +894,12 @@ impl<'a> LLVM<'a> {
                                     .build_float_sub(loaded.into_float_value(), one, "inc_float")
                                     .into()
                             }
-                            _ => return Err(MilaErr::AssignToDifferentType(kind.clone())),
+                            _ => {
+                                return Err(MilaErr::AssignToDifferentType {
+                                    exp: Kind::Integer,
+                                    act: kind,
+                                })
+                            }
                         };
                         self.bld.build_store(space, res);
                         self.bld.build_load(int_type, space, "inc_final")
@@ -794,7 +922,12 @@ impl<'a> LLVM<'a> {
                                     .build_float_add(loaded.into_float_value(), one, "inc_float")
                                     .into()
                             }
-                            _ => return Err(MilaErr::AssignToDifferentType(kind.clone())),
+                            _ => {
+                                return Err(MilaErr::AssignToDifferentType {
+                                    exp: Kind::Integer,
+                                    act: kind,
+                                })
+                            }
                         };
                         self.bld.build_store(space, res);
                         self.bld.build_load(int_type, space, "inc_final")
@@ -802,7 +935,7 @@ impl<'a> LLVM<'a> {
                     BuiltInType::Write => {
                         assert_size(built_in, args, 1)?;
                         let func = self.mdl.get_function(&built_in.fn_name()).unwrap();
-                        let args = [self.compile_expr(&args[0])?.into()]; 
+                        let args = [self.compile_expr(&args[0])?.into()];
                         self.bld
                             .build_indirect_call(
                                 func.get_type(),
@@ -839,7 +972,7 @@ impl<'a> LLVM<'a> {
                             .try_as_basic_value()
                             .left()
                             .unwrap()
-                    },
+                    }
                     BuiltInType::Print => {
                         assert_size(built_in, args, 1)?;
                         let func = self.mdl.get_function(&built_in.fn_name()).unwrap();
@@ -854,7 +987,7 @@ impl<'a> LLVM<'a> {
                             .try_as_basic_value()
                             .left()
                             .unwrap()
-                    },
+                    }
                     BuiltInType::PrintLine => {
                         let res = self.compile_expr(&Expr::BuiltIn {
                             kind: BuiltInType::Print,
@@ -869,11 +1002,13 @@ impl<'a> LLVM<'a> {
                 }
             }
             Expr::VarAccess(name) => {
+                log("Var access");
                 let symbol = self.find_var_in_table(name, false)?;
                 self.bld
                     .build_load(self.kind_to_llvm(&symbol.kind)?, symbol.ptr, name)
             }
             Expr::ArrayAccess(_store, _) => {
+                log("Array access");
                 let arr_ptr = self.get_mem_space(expr, false)?.0;
                 self.bld
                     .build_load(arr_ptr.get_type(), arr_ptr, "array read")
@@ -882,6 +1017,7 @@ impl<'a> LLVM<'a> {
     }
 
     fn get_mem_space(&mut self, expr: &Expr, is_write: bool) -> Outcome<(PointerValue<'a>, Kind)> {
+        log("Mem space");
         Ok(match expr {
             // Expr::FunCall { name, args } => todo!(),
             Expr::VarAccess(name) => {
@@ -932,6 +1068,8 @@ impl<'a> LLVM<'a> {
     }
 
     fn compile_function(&mut self, function: &Function) -> Outcome<()> {
+        log("Compiling function");
+
         let fun_symbol = self
             .mila
             .functions
@@ -942,45 +1080,81 @@ impl<'a> LLVM<'a> {
 
         let fun = self.mdl.get_function(&declaration.mangle_name()).unwrap();
 
+        let bb = self.ctx.append_basic_block(fun, "fun_compilation");
+        self.bld.position_at_end(bb);
+
         let mut vars = HashMap::new();
-        for (i, arg) in function.vars.iter().enumerate() {
+
+        log("Processing params");
+        for (i, arg) in declaration.params.iter().enumerate() {
             let param = fun.get_nth_param(i.try_into().unwrap()).unwrap();
             param.set_name(&arg.name);
+
+            let var = self
+                .bld
+                .build_alloca(self.kind_to_llvm(&arg.kind)?, &arg.name);
+            self.bld.build_store(var, param);
+
             vars.insert(
                 arg.name.clone(),
                 VarSymbol {
                     kind: arg.kind.clone(),
-                    ptr: param.into_pointer_value(),
+                    ptr: var,
                     is_const: false,
                 },
             );
         }
 
-        let return_alloc = self
-            .bld
-            .build_alloca(self.kind_to_llvm(&declaration.return_type)?, "return_var");
-        vars.insert(
-            declaration.name.clone(),
-            VarSymbol {
-                kind: declaration.return_type.clone(),
-                ptr: return_alloc,
-                is_const: false,
-            },
-        );
+        log("Processing local vars");
+        for arg in function.local_vars.iter() {
+            let var = self
+                .bld
+                .build_alloca(self.kind_to_llvm(&arg.kind)?, &arg.name);
+            vars.insert(
+                arg.name.clone(),
+                VarSymbol {
+                    kind: arg.kind.clone(),
+                    ptr: var,
+                    is_const: false,
+                },
+            );
+        }
+
+        log("Building return");
+        let return_alloc = if declaration.return_type != Kind::Void {
+            let return_alloc = self
+                .bld
+                .build_alloca(self.kind_to_llvm(&declaration.return_type)?, "return_var");
+            vars.insert(
+                declaration.name.clone(),
+                VarSymbol {
+                    kind: declaration.return_type.clone(),
+                    ptr: return_alloc,
+                    is_const: false,
+                },
+            );
+            Some(return_alloc)
+        } else {
+            None
+        };
 
         self.mila.symbols.push(vars);
         self.mila.curr_function = Some((declaration.name.clone(), declaration.return_type.clone()));
 
-        let _bb = self.ctx.append_basic_block(fun, "fun_compilation");
-
+        log("Compiling body");
         let _instruction = self.compile_statement(&function.statement)?;
 
+        log("Compiling default return");
         // fallback return
         let _return_val = if declaration.return_type == Kind::Void {
             self.bld.build_return(None)
         } else {
-            let to_return = self
-                .try_cast_into_kind(return_alloc.as_basic_value_enum(), &declaration.return_type)?;
+            let loaded = self.bld.build_load(
+                self.kind_to_llvm(&declaration.return_type)?,
+                return_alloc.unwrap(),
+                "fun_return_default",
+            );
+            let to_return = self.try_cast_into_kind(loaded, &declaration.return_type)?;
             self.bld.build_return(Some(&*to_return))
         };
 
@@ -991,11 +1165,23 @@ impl<'a> LLVM<'a> {
     }
 
     fn compile_main(&mut self, statement: &Statement) -> Outcome<()> {
+        log("Compiling main");
+
         let name = MAIN_NAME.to_string();
+
+        log("Adding basic block");
+        let main_function =
+            self.mdl
+                .add_function(&name, self.ctx.i64_type().fn_type(&[], false), None);
+        let entry = self.ctx.append_basic_block(main_function, "main_block");
+        self.bld.position_at_end(entry);
+
+        log("Alloc return slot");
         let mut vars = HashMap::new();
         let return_alloc = self
             .bld
             .build_alloca(self.ctx.i64_type(), "main_return_var");
+
         vars.insert(
             name.clone(),
             VarSymbol {
@@ -1007,14 +1193,10 @@ impl<'a> LLVM<'a> {
         self.mila.symbols.push(vars);
         self.mila.curr_function = Some((name.clone(), Kind::Integer));
 
-        let main_function =
-            self.mdl
-                .add_function(&name, self.ctx.i64_type().fn_type(&[], false), None);
-        let entry = self.ctx.append_basic_block(main_function, "main_block");
-        self.bld.position_at_end(entry);
-
+        log("Compiling body");
         let _instruction = self.compile_statement(&statement)?;
-        // fallback return
+
+        log("Compiling default return");
         self.bld
             .build_return(Some(&self.ctx.i64_type().const_int(42, false)));
 
@@ -1029,7 +1211,11 @@ impl<'a> LLVM<'a> {
         value: BasicValueEnum<'a>,
         kind: &Kind,
     ) -> Outcome<Box<dyn BasicValue<'a> + 'a>> {
-        if self.kind_to_llvm(&kind)? == value.get_type() {
+        log("Try cast into");
+
+        let val_kind = self.llvm_to_kind(&value.get_type());
+
+        if kind == &val_kind {
             let value: Box<dyn BasicValue> = match kind {
                 Kind::Integer => Box::new(value.into_int_value()),
                 Kind::Float => Box::new(value.into_float_value()),
@@ -1063,6 +1249,9 @@ impl<'a> LLVM<'a> {
                     .into_int_value(),
             ));
         };
-        Err(MilaErr::AssignToDifferentType(kind.clone()))
+        Err(MilaErr::AssignToDifferentType {
+            exp: kind.clone(),
+            act: val_kind,
+        })
     }
 }

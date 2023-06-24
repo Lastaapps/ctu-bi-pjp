@@ -1,0 +1,5 @@
+program test_04_arrays;
+
+begin
+    exit
+end.

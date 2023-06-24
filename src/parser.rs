@@ -361,7 +361,7 @@ fn parse_fun_or_dec(parser: &mut Parser) -> Outcome<(Declaration, Option<Functio
         declaration,
         Some(Function {
             name: name,
-            vars: vars,
+            local_vars: vars,
             statement: Box::new(code),
         }),
     ))

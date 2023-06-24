@@ -1,0 +1,32 @@
+program test_02_statements;
+
+var i: Integer;
+const y = 3;
+
+begin
+    println(y);
+    readln(main);
+    if main = 42 then
+        main := 24;
+
+    if main = 24 then
+        main := 14
+    else
+        inc(main);
+
+    println(main);
+    
+    if main < 0 then main := -main;
+
+    for i := main + 2 downto main - 10 do begin
+        println(i);
+    end;
+
+    while main > 0 do begin
+        println(main);
+        dec(main);
+    end;
+
+    writeln('Done');
+    exit
+end.

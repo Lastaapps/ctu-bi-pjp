@@ -1,0 +1,17 @@
+program test_03_expressions;
+
+var x, y: Integer;
+
+procedure my_print(expected: Integer; actual: Integer); begin
+    print(expected);
+    write(" - ");
+    print(actual);
+    writeln("");
+end;
+
+begin
+    x := 2;
+    y := 3;
+
+    my_print(1, 2);
+end.

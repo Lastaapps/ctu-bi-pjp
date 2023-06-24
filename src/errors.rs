@@ -27,10 +27,13 @@ pub enum MilaErr {
     // llvm
     DuplicateGlobal(String),
     DuplicateFunName(String),
+    DuplicateFunAndParamName(String),
     VoidAsVariable,
     WrongCast,
     AssignNotSupported(Expr),
-    AssignToDifferentType(Kind),
+    AssignToDifferentType{
+        exp: Kind, act: Kind,
+    },
     CannotIndexWithNonInteger,
     CannotUseIndexingOnNonArrayType { code: u8 },
     VarNotFound(String),
@@ -78,13 +81,13 @@ impl Display for MilaErr {
                 write!(f, "Duplicate global variable or constant: {name}")
             }
             Self::DuplicateFunName(name) => write!(f, "Duplicate fun name: {name}"),
+            Self::DuplicateFunAndParamName(name) => write!(f, "Conflicting fun and param name: {name}"),
             Self::VoidAsVariable => write!(f, "Variable cannot be of the type: void"),
             Self::WrongCast => write!(f, "Wrong cast, somewhere..."),
             Self::AssignNotSupported(expr) => write!(f, "Assign to {:?} not supported", expr),
-            Self::AssignToDifferentType(kind) => write!(
+            Self::AssignToDifferentType { exp, act } => write!(
                 f,
-                "Assignment type mismatch, tried to assign/return {:?}",
-                kind
+                "Assignment type mismatch, tried to assign/return {:?} into {:?}", act, exp
             ),
             Self::CannotIndexWithNonInteger => write!(f, "Cannot uses non integer for indexing"),
             Self::CannotUseIndexingOnNonArrayType { code } => {

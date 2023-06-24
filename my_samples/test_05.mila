@@ -1,0 +1,5 @@
+program test_05_int_float;
+
+begin
+    exit
+end.

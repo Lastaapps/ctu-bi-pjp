@@ -75,7 +75,7 @@ fn run_mila(mode: AppMode) -> Outcome<()> {
 
     // loop {
     //     let token = lexer.next_token()?;
-    //     println!("{token}");
+    //     eprintln!("{token}");
     //     if token.token == Token::EOF {
     //         break;
     //     };
@@ -84,8 +84,7 @@ fn run_mila(mode: AppMode) -> Outcome<()> {
 
     let mut parser = Parser::factory(lexer);
     let ast = parser.parse_ast()?;
-    // println!("{:?}", ast);
-    // return Ok(());
+    eprintln!("{:?}\n", ast);
 
     println!("{}", ast.compile()?);
 

@@ -63,7 +63,7 @@ pub struct Declaration {
 #[derive(Debug, PartialEq)]
 pub struct Function {
     pub name: String,
-    pub vars: Vec<Variable>,
+    pub local_vars: Vec<Variable>,
     pub statement: Box<Statement>,
 }
 

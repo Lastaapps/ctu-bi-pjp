@@ -302,7 +302,11 @@ impl<'a> LLVM<'a> {
 
     fn compile_statement(&mut self, statement: &Statement) -> Outcome<()> {
         match statement {
-            Statement::Block { statements: _ } => todo!(),
+            Statement::Block { statements } => {
+                for statement in statements.iter() {
+                    self.compile_statement(statement)?;
+                }
+            },
             Statement::ExprWrapper(expr) => {
                 self.compile_expr(expr)?.as_instruction_value().unwrap();
             }
@@ -316,9 +320,10 @@ impl<'a> LLVM<'a> {
                 var_name,
                 from,
                 to,
-                is_to: _,
+                is_to,
                 scope,
             } => {
+                let int_type = self.ctx.i64_type();
                 let prev_cb = self.bld.get_insert_block().unwrap();
                 let parent_func = prev_cb.get_parent().unwrap();
                 let cond_cb = self.ctx.append_basic_block(parent_func, "for_cond");
@@ -359,6 +364,16 @@ impl<'a> LLVM<'a> {
 
                 self.bld.position_at_end(body_cb);
                 self.compile_statement(&scope)?;
+
+                // +- 1
+                let loaded = self.bld.build_load(int_type, space, "for_int_load").into_int_value();
+                let one = int_type.const_int(1, true);
+                let modify = if *is_to {
+                    self.bld.build_int_add(loaded, one, "for_inc")
+                } else {
+                    self.bld.build_int_sub(loaded, one, "for_dec")
+                };
+                self.bld.build_store(space, modify);
                 self.bld.build_unconditional_branch(cond_cb);
 
                 self.bld.position_at_end(follow_cb);
@@ -452,7 +467,6 @@ impl<'a> LLVM<'a> {
                     self.bld
                         .build_return(Some(&*self.try_cast_into_kind(value, &kind)?));
                 }
-                todo!()
             }
         };
         Ok(())
@@ -703,8 +717,10 @@ impl<'a> LLVM<'a> {
                 let fun = self.mdl.get_function(&mangled).unwrap();
 
                 self.bld
-                    .build_direct_call(fun, args.as_slice(), "function_call");
-                todo!()
+                    .build_direct_call(fun, args.as_slice(), "function_call")
+                    .try_as_basic_value()
+                    .left()
+                    .unwrap()
             }
             Expr::BuiltIn { name: _, args: _ } => todo!(),
             Expr::VarAccess(name) => {

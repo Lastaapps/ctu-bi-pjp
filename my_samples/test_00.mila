@@ -1,7 +1,0 @@
-program test_00;
-
-begin
-    main := 43;
-    writeln(main);
-    exit
-end.

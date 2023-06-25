@@ -73,7 +73,7 @@ OutputFileBaseName="${OutputFileName%%.*}"
 
 rm -f "$OutputFileBaseName.ir"
 #echo "DEBUG" "$OutputFileBaseName.ir" "$InputFileName" "${DIR}/build/mila"
-cargo run "$InputFileName" > "$OutputFileBaseName.ir"
+cat "$InputFileName" | cargo run > "$OutputFileBaseName.ir"
 rm -f "$OutputFileBaseName.s"
 llc "$OutputFileBaseName.ir" -o "$OutputFileBaseName.s" -relocation-model=pic &&
 clang "$OutputFileBaseName.s" "${DIR}/src/lib.c" -o "$OutputFileName"

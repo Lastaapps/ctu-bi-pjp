@@ -3,6 +3,9 @@ samples/*
 !samples/*.mila
 a.ir
 a.s
+a.out
+rusty-tags.vi
+.vscode/
 
 # Added by cargo
 

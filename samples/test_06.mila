@@ -6,15 +6,11 @@ function func_no_params(): Integer; begin
 end;
 
 function pow(x: Integer; a: Integer): Integer;
-var acu: Integer;
+var i: Integer;
 begin
-    acu := 1;
-    pow := x + a + acu;
-    "
-    for 
-    func_no_params = 42;
-    exit;
-    ";
+    pow := 1;
+    for i := 0 to a - 1 do
+        pow := x * pow;
 end;
 
 var arr: array [-2 .. 2] of Float;

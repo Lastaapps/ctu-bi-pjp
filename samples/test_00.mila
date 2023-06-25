@@ -1,0 +1,12 @@
+program test_00;
+
+begin
+    main := 43;
+    writeln(main);
+    
+    writeln(%101010);
+    writeln(&52);
+    writeln( 42);
+    writeln($2a);
+    exit
+end.

@@ -52,8 +52,8 @@ impl NumBase {
             Self::Dec => num * 10 + (c as u8 - b'0') as u64,
             Self::Hex => match c {
                 '0'..='9' => num * 16 + (c as u8 - b'0') as u64,
-                'a'..='f' => num * 16 + (c as u8 - b'a') as u64,
-                'A'..='F' => num * 16 + (c as u8 - b'A') as u64,
+                'a'..='f' => num * 16 + (c as u8 - b'a') as u64 + 10,
+                'A'..='F' => num * 16 + (c as u8 - b'A') as u64 + 10,
                 _ => panic!("Non-valid char passed"),
             },
         }

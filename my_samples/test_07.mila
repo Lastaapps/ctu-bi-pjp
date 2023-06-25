@@ -1,5 +1,42 @@
-program test_07;
+program test_07_break_continue;
+
+var i : Integer;
+var j : Integer;
 
 begin
-    exit
+    writeLn("Started");
+    for i := 0 to 10 do begin
+        write("For ");
+        printLn(i);
+        if i mod 2 <> 0 then
+            continue;
+
+        for j := 0 to 10 do begin
+            if j = i then
+                break;
+            printLn(j);
+        end;
+    end;
+
+    while 1 do begin
+        if i = 0 then begin
+            writeLn("Done");
+            break;
+        end else begin
+            writeLn("Check");
+            i := 0;
+            continue;
+        end;
+    end;
+
+    while 1 do begin
+        if i = 42 then begin
+            writeLn("Done");
+            exit;
+        end else begin
+            writeLn("Check");
+            i := 42;
+            continue;
+        end;
+    end;
 end.

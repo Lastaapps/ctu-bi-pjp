@@ -441,6 +441,14 @@ fn parse_statement(parser: &mut Parser) -> Outcome<Statement> {
             parser.consume()?;
             Ok(Statement::Exit)
         }
+        Token::Keyword(KT::Break) => {
+            parser.consume()?;
+            Ok(Statement::Break)
+        }
+        Token::Keyword(KT::Continue) => {
+            parser.consume()?;
+            Ok(Statement::Continue)
+        }
         _ => parse_assign_or_expr(parser),
         // _ => Err(MilaErr::InvalidToken { msg: String::from("Invalid statement start"), act: next_token })
     }

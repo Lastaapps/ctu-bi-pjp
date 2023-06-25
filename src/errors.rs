@@ -42,6 +42,7 @@ pub enum MilaErr {
     FunctionNotDefined(String),
     ForIntOnly,
     BuiltInWrongArgCount(BuiltInType, usize),
+    NoBreakContinueContext,
 }
 
 impl Display for MilaErr {
@@ -101,6 +102,7 @@ impl Display for MilaErr {
             Self::FunctionNotDefined(name) => write!(f, "Function with name {name} is not defined"),
             Self::ForIntOnly => write!(f, "For can be used only with integer variables and values"),
             Self::BuiltInWrongArgCount(kind, count) => write!(f, "Built in {:?} does not support {} args.", kind, count),
+            Self::NoBreakContinueContext => write!(f, "Cannot break from here"),
         }
     }
 }

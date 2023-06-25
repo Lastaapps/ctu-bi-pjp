@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use inkwell::{
+    basic_block::BasicBlock,
     builder::Builder,
     context::Context,
     module::{Linkage, Module},
@@ -43,6 +44,7 @@ struct MilaCtx<'a> {
     symbols: Vec<HashMap<String, VarSymbol<'a>>>,
     functions: HashMap<String, FunSymbol<'a>>,
     curr_function: Option<(String, Kind)>,
+    break_continue_target: Option<(BasicBlock<'a>, BasicBlock<'a>)>,
 }
 
 const MAIN_NAME: &str = "main";
@@ -163,6 +165,7 @@ impl Program {
             symbols: vec![],
             functions: HashMap::new(),
             curr_function: None,
+            break_continue_target: None,
         };
 
         // llvm context
@@ -454,6 +457,7 @@ impl<'a> LLVM<'a> {
                 let parent_func = prev_cb.get_parent().unwrap();
                 let cond_cb = self.ctx.append_basic_block(parent_func, "for_cond");
                 let body_cb = self.ctx.append_basic_block(parent_func, "for_body");
+                let inc_cb = self.ctx.append_basic_block(parent_func, "for_inc");
                 let follow_cb = self.ctx.append_basic_block(parent_func, "for_follow");
 
                 let (space, kind) =
@@ -477,6 +481,10 @@ impl<'a> LLVM<'a> {
                 } else {
                     to.into_int_value()
                 };
+                let to = match is_to {
+                    true => self.bld.build_int_add(to, to.get_type().const_int(1, true), "modify_to"),
+                    false => self.bld.build_int_sub(to, to.get_type().const_int(1, true), "modify_to"),
+                };
 
                 let current = self
                     .bld
@@ -490,11 +498,16 @@ impl<'a> LLVM<'a> {
                 self.bld.build_conditional_branch(cond, body_cb, follow_cb);
 
                 log("For: body");
+                let old_target = self.mila.break_continue_target;
+                self.mila.break_continue_target = Some((follow_cb.clone(), inc_cb.clone()));
+
                 self.bld.position_at_end(body_cb);
                 self.compile_statement(&scope)?;
+                self.bld.build_unconditional_branch(inc_cb);
 
                 log("For - inc/dec");
                 // +- 1
+                self.bld.position_at_end(inc_cb);
                 let loaded = self
                     .bld
                     .build_load(int_type, space, "for_int_load")
@@ -509,6 +522,7 @@ impl<'a> LLVM<'a> {
                 self.bld.build_unconditional_branch(cond_cb);
 
                 self.bld.position_at_end(follow_cb);
+                self.mila.break_continue_target = old_target;
             }
             Statement::While { cond, scope } => {
                 log("Compiling while");
@@ -531,11 +545,15 @@ impl<'a> LLVM<'a> {
                 self.bld.build_conditional_branch(cond, body_cb, follow_cb);
 
                 log("While: body");
+                let old_target = self.mila.break_continue_target;
+                self.mila.break_continue_target = Some((follow_cb.clone(), cond_cb.clone()));
+
                 self.bld.position_at_end(body_cb);
                 self.compile_statement(&scope)?;
                 self.bld.build_unconditional_branch(cond_cb);
 
                 self.bld.position_at_end(follow_cb);
+                self.mila.break_continue_target = old_target;
             }
             Statement::If { cond, true_branch } => {
                 log("Compiling if");
@@ -619,6 +637,32 @@ impl<'a> LLVM<'a> {
                 };
                 self.bld.position_at_end(follow_cb);
                 res
+            }
+            Statement::Break => {
+                log("Compiling break");
+                let prev_cb = self.bld.get_insert_block().unwrap();
+                let parent_func = prev_cb.get_parent().unwrap();
+                let follow_cb = self.ctx.append_basic_block(parent_func, "exit_follow");
+
+                let target = match self.mila.break_continue_target {
+                    Some((target, _)) => target,
+                    None => return Err(MilaErr::NoBreakContinueContext),
+                };
+                self.bld.build_unconditional_branch(target.clone());
+                self.bld.position_at_end(follow_cb);
+            }
+            Statement::Continue => {
+                log("Compiling continue");
+                let prev_cb = self.bld.get_insert_block().unwrap();
+                let parent_func = prev_cb.get_parent().unwrap();
+                let follow_cb = self.ctx.append_basic_block(parent_func, "exit_follow");
+
+                let target = match self.mila.break_continue_target {
+                    Some((_, target)) => target,
+                    None => return Err(MilaErr::NoBreakContinueContext),
+                };
+                self.bld.build_unconditional_branch(target.clone());
+                self.bld.position_at_end(follow_cb);
             }
         };
         Ok(())
@@ -1362,7 +1406,7 @@ impl<'a> LLVM<'a> {
 
     fn to_bool_int(&mut self, value: &IntValue<'a>) -> IntValue<'a> {
         log("To bool (int)");
-        
+
         let zero = value.get_type().const_zero();
         self.bld
             .build_int_compare(IntPredicate::NE, value.clone(), zero, "to_bool_int")
@@ -1370,7 +1414,6 @@ impl<'a> LLVM<'a> {
 }
 
 // TODO
-// break, continue
 // forward deklarace pořádně
 // vícerozměrná pole
 // zkusit samply

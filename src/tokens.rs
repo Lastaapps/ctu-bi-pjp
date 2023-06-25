@@ -15,6 +15,8 @@ pub enum KeywordType {
     Program,
     While,
     Exit,
+    Break,
+    Continue,
     Var,
     Integer,
     Float,

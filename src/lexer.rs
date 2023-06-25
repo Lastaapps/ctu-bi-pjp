@@ -122,6 +122,8 @@ impl LexerImpl {
             "else" => Token::Keyword(KeywordType::Else),
             "program" => Token::Keyword(KeywordType::Program),
             "while" => Token::Keyword(KeywordType::While),
+            "break" => Token::Keyword(KeywordType::Break),
+            "continue" => Token::Keyword(KeywordType::Continue),
             "exit" => Token::Keyword(KeywordType::Exit),
             "var" => Token::Keyword(KeywordType::Var),
             "integer" => Token::Keyword(KeywordType::Integer),

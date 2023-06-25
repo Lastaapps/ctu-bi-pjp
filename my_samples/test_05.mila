@@ -1,5 +1,29 @@
 program test_05_int_float;
 
+var i: Integer;
+var f: Float;
+const a = 3;
+const b = 1.234;
+
 begin
+    i := 2;
+    f := 2.5;
+    println(i);
+    println(f);
+    
+    f := i;
+    println(f);
+    
+    f := f + 3.14159;
+    i := f;
+    println(i);
+
+    println(123 * 1.0);
+    
+    println(a);
+    println(b);
+    println(to_float(a));
+    println(to_integer(b));
+    
     exit
 end.

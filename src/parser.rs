@@ -478,7 +478,7 @@ fn parse_for(parser: &mut Parser) -> Outcome<Statement> {
     let dir_token = parser.consume()?;
     let dir = match dir_token.token {
         Token::Operator(OT::To) => true,
-        Token::Operator(OT::Downto) => false,
+        Token::Operator(OT::DownTo) => false,
         _ => {
             return Err(MilaErr::InvalidToken {
                 msg: String::from("For wrong direction"),
@@ -542,7 +542,7 @@ fn parse_if(parser: &mut Parser) -> Outcome<Statement> {
 }
 
 fn parse_expr(parser: &mut Parser) -> Outcome<Expr> {
-    parse_op8(parser)
+    parse_op9(parser)
 
     // let mut lhs = parse_op(parser)?;
     // let peeked = parser.peek()?.token;
@@ -563,25 +563,37 @@ fn parse_expr(parser: &mut Parser) -> Outcome<Expr> {
 }
 
 // or
-fn parse_op8(parser: &mut Parser) -> Outcome<Expr> {
-    let mut lhs = parse_op7(parser)?;
+fn parse_op9(parser: &mut Parser) -> Outcome<Expr> {
+    let mut lhs = parse_op8(parser)?;
 
     while Token::Operator(OT::Or) == parser.peek()?.token {
         parser.consume()?;
-        let rhs = parse_op7(parser)?;
+        let rhs = parse_op8(parser)?;
         lhs = Expr::Or(Box::new(lhs), Box::new(rhs));
     }
     Ok(lhs)
 }
 
 // and
-fn parse_op7(parser: &mut Parser) -> Outcome<Expr> {
-    let mut lhs = parse_op6(parser)?;
+fn parse_op8(parser: &mut Parser) -> Outcome<Expr> {
+    let mut lhs = parse_op7(parser)?;
 
     while Token::Operator(OT::And) == parser.peek()?.token {
         parser.consume()?;
-        let rhs = parse_op6(parser)?;
+        let rhs = parse_op7(parser)?;
         lhs = Expr::And(Box::new(lhs), Box::new(rhs));
+    }
+    Ok(lhs)
+}
+
+// xor
+fn parse_op7(parser: &mut Parser) -> Outcome<Expr> {
+    let mut lhs = parse_op6(parser)?;
+
+    while Token::Operator(OT::Xor) == parser.peek()?.token {
+        parser.consume()?;
+        let rhs = parse_op6(parser)?;
+        lhs = Expr::Xor(Box::new(lhs), Box::new(rhs));
     }
     Ok(lhs)
 }
@@ -688,13 +700,29 @@ fn parse_op2(parser: &mut Parser) -> Outcome<Expr> {
     Ok(if Token::Operator(OT::Plus) == peeked {
         parser.consume()?;
         parse_op2(parser)?
-    } else if Token::Operator(OT::Minus) == peeked {
+    } else
+    if Token::Operator(OT::Minus) == peeked {
         parser.consume()?;
         let rhs = parse_op2(parser)?;
         Expr::Sub(Box::new(Expr::Literal(Value::IntValue(0))), Box::new(rhs))
-    } else {
-        parse_op1(parser)?
-    })
+    } else 
+    if Token::Operator(OT::Not) == peeked {
+        parser.consume()?;
+        let rhs = parse_op2(parser)?;
+        Expr::Not(Box::new(rhs))
+    } else 
+    if Token::Operator(OT::CastToInt) == peeked {
+        parser.consume()?;
+        let rhs = parse_op2(parser)?;
+        Expr::CastToInt(Box::new(rhs))
+    } else 
+    if Token::Operator(OT::CastToFloat) == peeked {
+        parser.consume()?;
+        let rhs = parse_op2(parser)?;
+        Expr::CastToFloat(Box::new(rhs))
+    } else 
+    { parse_op1(parser)? }
+)
 }
 
 // brackets, values

@@ -13,5 +13,18 @@ begin
     x := 2;
     y := 3;
 
-    my_print(1, 2);
+    my_print(42, ++--42);
+    my_print(42, 6+6*6);
+    my_print(42, (6+6)*4 - 6);
+
+    my_print(1, x = y - 1);
+    my_print(1, x <> y - 1);
+    my_print(1, 1 < 4 < 2);
+    
+    my_print(1, 1 and 2);
+    my_print(0, 0 and x);
+    my_print(1, 1 or  2);
+    my_print(1, 0 or  x);
+    
+    my_print(1, y > x);
 end.

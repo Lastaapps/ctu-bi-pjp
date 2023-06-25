@@ -133,10 +133,15 @@ impl LexerImpl {
 
             "and" => Token::Operator(OperatorType::And),
             "or" => Token::Operator(OperatorType::Or),
-            "downto" => Token::Operator(OperatorType::Downto),
+            "xor" => Token::Operator(OperatorType::Xor),
+            "not" => Token::Operator(OperatorType::Not),
+            "downto" => Token::Operator(OperatorType::DownTo),
             "to" => Token::Operator(OperatorType::To),
             "mod" => Token::Operator(OperatorType::Mod),
             "div" => Token::Operator(OperatorType::Div),
+
+            "to_integer" => Token::Operator(OperatorType::CastToInt),
+            "to_float" => Token::Operator(OperatorType::CastToFloat),
 
             "dec" => Token::BuiltIn(BuiltInType::Dec),
             "inc" => Token::BuiltIn(BuiltInType::Inc),

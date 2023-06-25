@@ -84,6 +84,10 @@ pub enum Expr {
     Ne(BExpr, BExpr),
     And(BExpr, BExpr),
     Or(BExpr, BExpr),
+    Xor(BExpr, BExpr),
+    Not(BExpr),
+    CastToInt(BExpr),
+    CastToFloat(BExpr),
 
     Literal(Value),
     FunCall { name: String, args: Vec<Expr> },

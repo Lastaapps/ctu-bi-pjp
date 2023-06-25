@@ -53,14 +53,23 @@ enum ValuePair<'a> {
 }
 
 impl BuiltInType {
-    fn fn_name(&self) -> String {
+    fn fn_name(&self, kind: Option<&Kind>) -> String {
+        let suffix = match kind {
+            Some(kind) => 
+                "_".to_string() + match kind {
+                    Kind::Integer => "integer",
+                    Kind::Float => "float",
+                    _ => panic!("Not supported"),
+                },
+            None => "".to_string(),
+        };
         match self {
             BuiltInType::ReadLine => "built_read_line",
             BuiltInType::Write => "built_write",
             BuiltInType::Print => "built_print",
             _ => panic!("Built name not supported for {self:?}"),
         }
-        .to_string()
+        .to_string() + &suffix
     }
 }
 
@@ -173,7 +182,10 @@ impl Program {
 
         log("Starting verification");
         llvm.mdl.print_to_stderr();
-        llvm.mdl.verify().unwrap();
+        match llvm.mdl.verify() {
+            Ok(_) => {},
+            Err(e) => eprintln!("\n\n{}\n\n", e.to_string().replace("\\n", "\n")),
+        };
 
         Ok(llvm.mdl.print_to_string().to_string())
     }
@@ -235,7 +247,6 @@ impl<'a> LLVM<'a> {
 
     fn find_var_in_table(&mut self, name: &str, for_write: bool) -> Outcome<VarSymbol<'a>> {
         log("Finding var in a table");
-        eprintln!("{:?}", self.mila.symbols);
         for map in self.mila.symbols.iter().rev() {
             match map.get(name) {
                 Some(symbol) => {
@@ -328,24 +339,41 @@ impl<'a> LLVM<'a> {
     fn declare_builtin_functions(&self) -> Outcome<()> {
         // Print
         {
+            // int
             let args = vec![self.kind_to_llvm(&Kind::Integer)?.into()];
             let fun = self.ctx.i64_type().fn_type(args.as_slice(), false);
             self.mdl
-                .add_function(&BuiltInType::Print.fn_name(), fun, Some(Linkage::External));
+                .add_function(&BuiltInType::Print.fn_name(Some(&Kind::Integer)), fun, Some(Linkage::External));
+
+            // float
+            let args = vec![self.kind_to_llvm(&Kind::Float)?.into()];
+            let fun = self.ctx.f64_type().fn_type(args.as_slice(), false);
+            self.mdl
+                .add_function(&BuiltInType::Print.fn_name(Some(&Kind::Float)), fun, Some(Linkage::External));
         };
         // Write
         {
             let args = vec![self.kind_to_llvm(&Kind::String)?.into()];
             let fun = self.ctx.i64_type().fn_type(args.as_slice(), false);
             self.mdl
-                .add_function(&BuiltInType::Write.fn_name(), fun, Some(Linkage::External));
+                .add_function(&BuiltInType::Write.fn_name(None), fun, Some(Linkage::External));
         };
         // ReadLine
         {
+            // int
             let args = vec![self.ctx.i64_type().ptr_type(AddressSpace::default()).into()];
             let fun = self.ctx.i64_type().fn_type(args.as_slice(), false);
             self.mdl.add_function(
-                &BuiltInType::ReadLine.fn_name(),
+                &BuiltInType::ReadLine.fn_name(Some(&Kind::Integer)),
+                fun,
+                Some(Linkage::External),
+            );
+
+            // float
+            let args = vec![self.ctx.f64_type().ptr_type(AddressSpace::default()).into()];
+            let fun = self.ctx.f64_type().fn_type(args.as_slice(), false);
+            self.mdl.add_function(
+                &BuiltInType::ReadLine.fn_name(Some(&Kind::Float)),
                 fun,
                 Some(Linkage::External),
             );
@@ -808,8 +836,41 @@ impl<'a> LLVM<'a> {
                     return Err(MilaErr::LogicOnIntOnly);
                 }
                 self.bld
-                    .build_or(lhs.into_int_value(), rhs.into_int_value(), "and")
+                    .build_or(lhs.into_int_value(), rhs.into_int_value(), "or")
                     .into()
+            }
+            Expr::Xor(lhs, rhs) => {
+                log("Xor");
+                let lhs = self.compile_expr(lhs)?;
+                let rhs = self.compile_expr(rhs)?;
+                if !lhs.is_int_value() || !rhs.is_int_value() {
+                    return Err(MilaErr::LogicOnIntOnly);
+                }
+                self.bld
+                    .build_xor(lhs.into_int_value(), rhs.into_int_value(), "xor")
+                    .into()
+            }
+            Expr::Not(lhs) => {
+                log("Not");
+                let lhs = self.compile_expr(lhs)?;
+                if !lhs.is_int_value() {
+                    return Err(MilaErr::LogicOnIntOnly);
+                }
+                self.bld
+                    .build_not(lhs.into_int_value(), "not")
+                    .into()
+            }
+            Expr::CastToInt(lhs) => {
+                log("Cast to int");
+                let lhs = self.compile_expr(lhs)?;
+                self.try_cast_into_kind(lhs, &Kind::Integer)?
+                    .as_basic_value_enum()
+            }
+            Expr::CastToFloat(lhs) => {
+                log("Cast to float");
+                let lhs = self.compile_expr(lhs)?;
+                self.try_cast_into_kind(lhs, &Kind::Float)?
+                    .as_basic_value_enum()
             }
             Expr::Literal(value) => {
                 log("Literal");
@@ -934,7 +995,7 @@ impl<'a> LLVM<'a> {
                     }
                     BuiltInType::Write => {
                         assert_size(built_in, args, 1)?;
-                        let func = self.mdl.get_function(&built_in.fn_name()).unwrap();
+                        let func = self.mdl.get_function(&built_in.fn_name(None)).unwrap();
                         let args = [self.compile_expr(&args[0])?.into()];
                         self.bld
                             .build_indirect_call(
@@ -960,8 +1021,9 @@ impl<'a> LLVM<'a> {
                     }
                     BuiltInType::ReadLine => {
                         assert_size(built_in, args, 1)?;
-                        let func = self.mdl.get_function(&built_in.fn_name()).unwrap();
-                        let args = [self.get_mem_space(&args[0], true)?.0.into()];
+                        let (space, kind) = self.get_mem_space(&args[0], true)?;
+                        let func = self.mdl.get_function(&built_in.fn_name(Some(&kind))).unwrap();
+                        let args = [space.into()];
                         self.bld
                             .build_indirect_call(
                                 func.get_type(),
@@ -975,8 +1037,11 @@ impl<'a> LLVM<'a> {
                     }
                     BuiltInType::Print => {
                         assert_size(built_in, args, 1)?;
-                        let func = self.mdl.get_function(&built_in.fn_name()).unwrap();
-                        let args = [self.compile_expr(&args[0])?.into()];
+                        let space = self.compile_expr(&args[0])?;
+                        let kind = self.llvm_to_kind(&space.get_type());
+
+                        let func = self.mdl.get_function(&built_in.fn_name(Some(&kind))).unwrap();
+                        let args = [space.into()];
                         self.bld
                             .build_indirect_call(
                                 func.get_type(),
@@ -1140,6 +1205,7 @@ impl<'a> LLVM<'a> {
 
         self.mila.symbols.push(vars);
         self.mila.curr_function = Some((declaration.name.clone(), declaration.return_type.clone()));
+        eprintln!("{:?}", self.mila.symbols);
 
         log("Compiling body");
         let _instruction = self.compile_statement(&function.statement)?;
@@ -1192,6 +1258,7 @@ impl<'a> LLVM<'a> {
         );
         self.mila.symbols.push(vars);
         self.mila.curr_function = Some((name.clone(), Kind::Integer));
+        eprintln!("{:?}", self.mila.symbols);
 
         log("Compiling body");
         let _instruction = self.compile_statement(&statement)?;

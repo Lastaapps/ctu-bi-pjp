@@ -8,22 +8,22 @@ const b = 1.234;
 begin
     i := 2;
     f := 2.5;
-    println(i);
-    println(f);
+    writeln(i);
+    writeln(f);
     
     f := i;
-    println(f);
+    writeln(f);
     
     f := f + 3.14159;
     i := f;
-    println(i);
+    writeln(i);
 
-    println(123 * 1.0);
+    writeln(123 * 1.0);
     
-    println(a);
-    println(b);
-    println(to_float(a));
-    println(to_integer(b));
+    writeln(a);
+    writeln(b);
+    writeln(to_float(a));
+    writeln(to_integer(b));
     
     exit
 end.

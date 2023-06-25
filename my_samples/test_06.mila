@@ -31,22 +31,22 @@ begin
         else
             is_first := not(is_first);
 
-        print(arr[i]);
+        write(arr[i]);
     end;
     writeLn("]");
 end;
 
 procedure recursive(n: Integer);
 begin
-    printLn(n);
+    writeLn(n);
     if n <> 0 then
         recursive(n - 1);
-    printLn(n);
+    writeLn(n);
 end;
 
 begin
-    printLn(func_no_params());
-    printLn(pow(3, 2));
+    writeLn(func_no_params());
+    writeLn(pow(3, 2));
     arr[0] := 42;
     log_array(arr);
     recursive(5);

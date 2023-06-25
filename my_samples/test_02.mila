@@ -4,7 +4,7 @@ var i: Integer;
 const y = 3;
 
 begin
-    println(y);
+    writeln(y);
     readln(main);
     if main = 42 then
         main := 24;
@@ -14,16 +14,16 @@ begin
     else
         inc(main);
 
-    println(main);
+    writeln(main);
     
     if main < 0 then main := -main;
 
     for i := main + 2 downto main - 10 do begin
-        println(i);
+        writeln(i);
     end;
 
     while main > 0 do begin
-        println(main);
+        writeln(main);
         dec(main);
     end;
 

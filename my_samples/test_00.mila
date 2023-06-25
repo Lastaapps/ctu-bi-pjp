@@ -2,6 +2,6 @@ program test_00;
 
 begin
     main := 43;
-    println(main);
+    writeln(main);
     exit
 end.

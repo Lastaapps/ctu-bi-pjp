@@ -84,8 +84,6 @@ pub enum BuiltInType {
     Write,
     WriteLine,
     ReadLine,
-    Print,
-    PrintLine,
 }
 
 #[derive(Debug, PartialEq, Clone)]

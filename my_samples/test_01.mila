@@ -3,11 +3,11 @@ program test_01_built_in_functions;
 begin
     writeln('Give me u number');
     main := -1;
-    println(ReadLn(main));
-    println(main);
+    writeln(ReadLn(main));
+    writeln(main);
     inc(main);    
-    println(main);
+    writeln(main);
     dec(main); dec(main);    
-    println(main);
+    writeln(main);
     writeln(done);
 end.

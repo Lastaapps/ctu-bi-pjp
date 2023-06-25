@@ -1,21 +1,23 @@
 program test_04_arrays;
 
-var arr: array [-10 .. 10] of Integer;
+var i : Integer;
+var arr: array [-20 .. 20] of Integer;
 var matrix: array [-10 .. 10] of array [-10 .. 10] of Integer;
 
 begin
     arr[10] := 42;
     arr[-10] := 43;
-    printLn(arr[10]);
-    printLn(arr[-10]);
-    printLn(arr[-0]);
-    "
-    ";
-    
-    " Not working (yet)
+    writeLn(arr[10]);
+    writeLn(arr[-10]);
+    writeLn(arr[-0]);
+
+    for i := -20 to 20 do
+        arr[I] := arr[I];
+
     matrix[10][10] := 69;
     matrix[-10][-10] := 420;
-    printLn(matrix[10][10]);
-    printLn(matrix[-10][-10]);
+    writeLn(matrix[10][10]);
+    writeLn(matrix[-10][-10]);
+    " Not working (yet)
     ";
 end.

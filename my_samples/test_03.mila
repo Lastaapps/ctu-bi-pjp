@@ -3,9 +3,9 @@ program test_03_expressions;
 var x, y: Integer;
 
 procedure my_print(expected: Integer; actual: Integer); begin
-    print(expected);
+    write(expected);
     write(" - ");
-    print(actual);
+    write(actual);
     writeln("");
 end;
 

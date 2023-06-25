@@ -62,16 +62,16 @@ impl BuiltInType {
                     + match kind {
                         Kind::Integer => "integer",
                         Kind::Float => "float",
+                        Kind::String => "string",
                         _ => panic!("Not supported type: {:?}", kind),
                     }
             }
             None => "".to_string(),
         };
         match self {
-            BuiltInType::ReadLine => "built_read_line",
-            BuiltInType::Write => "built_write",
-            BuiltInType::Print => "built_print",
-            _ => panic!("Built name not supported for {self:?}"),
+            BuiltInType::ReadLine => "built_in_read_line",
+            BuiltInType::Write => "built_in_write",
+            _ => panic!("Kind name not supported for {self:?}"),
         }
         .to_string()
             + &suffix
@@ -343,13 +343,13 @@ impl<'a> LLVM<'a> {
     }
 
     fn declare_builtin_functions(&self) -> Outcome<()> {
-        // Print
+        // Write
         {
             // int
             let args = vec![self.kind_to_llvm(&Kind::Integer)?.into()];
             let fun = self.ctx.i64_type().fn_type(args.as_slice(), false);
             self.mdl.add_function(
-                &BuiltInType::Print.fn_name(Some(&Kind::Integer)),
+                &BuiltInType::Write.fn_name(Some(&Kind::Integer)),
                 fun,
                 Some(Linkage::External),
             );
@@ -358,17 +358,16 @@ impl<'a> LLVM<'a> {
             let args = vec![self.kind_to_llvm(&Kind::Float)?.into()];
             let fun = self.ctx.f64_type().fn_type(args.as_slice(), false);
             self.mdl.add_function(
-                &BuiltInType::Print.fn_name(Some(&Kind::Float)),
+                &BuiltInType::Write.fn_name(Some(&Kind::Float)),
                 fun,
                 Some(Linkage::External),
             );
-        };
-        // Write
-        {
+
+            // string
             let args = vec![self.kind_to_llvm(&Kind::String)?.into()];
             let fun = self.ctx.i64_type().fn_type(args.as_slice(), false);
             self.mdl.add_function(
-                &BuiltInType::Write.fn_name(None),
+                &BuiltInType::Write.fn_name(Some(&Kind::String)),
                 fun,
                 Some(Linkage::External),
             );
@@ -1056,18 +1055,44 @@ impl<'a> LLVM<'a> {
                     }
                     BuiltInType::Write => {
                         assert_size(built_in, args, 1)?;
-                        let func = self.mdl.get_function(&built_in.fn_name(None)).unwrap();
+
+                        let space = self.compile_expr(&args[0])?;
+                        let kind = self.llvm_to_kind(&space.get_type());
+
+                        let func = self
+                            .mdl
+                            .get_function(&built_in.fn_name(Some(&kind)))
+                            .unwrap();
                         let args = [self.compile_expr(&args[0])?.into()];
-                        self.bld
-                            .build_indirect_call(
-                                func.get_type(),
-                                func.as_global_value().as_pointer_value(),
-                                &args,
-                                "write_call",
-                            )
-                            .try_as_basic_value()
-                            .left()
-                            .unwrap()
+
+                        match kind {
+                            Kind::Integer | Kind::Float => {
+                                let args = [space.into()];
+                                self.bld
+                                    .build_indirect_call(
+                                        func.get_type(),
+                                        func.as_global_value().as_pointer_value(),
+                                        &args,
+                                        "write_call",
+                                    )
+                                    .try_as_basic_value()
+                                    .left()
+                                    .unwrap()
+                            },
+                            Kind::String => {
+                                self.bld
+                                    .build_indirect_call(
+                                        func.get_type(),
+                                        func.as_global_value().as_pointer_value(),
+                                        &args,
+                                        "write_call",
+                                    )
+                                    .try_as_basic_value()
+                                    .left()
+                                    .unwrap()
+                            },
+                            kind => panic!("Not supported type {:?}", kind),
+                        }
                     }
                     BuiltInType::WriteLine => {
                         let res = self.compile_expr(&Expr::BuiltIn {
@@ -1099,41 +1124,6 @@ impl<'a> LLVM<'a> {
                             .left()
                             .unwrap()
                     }
-                    BuiltInType::Print => {
-                        assert_size(built_in, args, 1)?;
-                        let space = self.compile_expr(&args[0])?;
-                        let kind = self.llvm_to_kind(&space.get_type());
-
-                        eprintln!("dbg: {:?}", space);
-                        eprintln!("dbg: {:?}", kind);
-
-                        let func = self
-                            .mdl
-                            .get_function(&built_in.fn_name(Some(&kind)))
-                            .unwrap();
-                        let args = [space.into()];
-                        self.bld
-                            .build_indirect_call(
-                                func.get_type(),
-                                func.as_global_value().as_pointer_value(),
-                                &args,
-                                "print_call",
-                            )
-                            .try_as_basic_value()
-                            .left()
-                            .unwrap()
-                    }
-                    BuiltInType::PrintLine => {
-                        let res = self.compile_expr(&Expr::BuiltIn {
-                            kind: BuiltInType::Print,
-                            args: args.clone(),
-                        })?;
-                        self.compile_expr(&Expr::BuiltIn {
-                            kind: BuiltInType::Write,
-                            args: new_line_args,
-                        })?;
-                        res
-                    }
                 }
             }
             Expr::VarAccess(name) => {
@@ -1146,7 +1136,7 @@ impl<'a> LLVM<'a> {
                 log("Array access");
                 let (arr_ptr, kind) = self.get_mem_space(expr, false)?;
                 self.bld
-                    .build_load(self.kind_to_llvm(&kind)?, arr_ptr, "array read")
+                    .build_load(self.kind_to_llvm(&kind)?, arr_ptr, "array_read")
             }
         })
     }
@@ -1176,9 +1166,9 @@ impl<'a> LLVM<'a> {
                             offset
                         } else {
                             let zero = self.ctx.i64_type().const_zero();
-                            self.bld.build_int_sub(zero, offset, "inverse index")
+                            self.bld.build_int_sub(zero, offset, "inverse_index")
                         };
-                        let result = self.bld.build_int_add(index, signed, "update index");
+                        let result = self.bld.build_int_add(index, signed, "update_index");
                         (*sub_kind, result)
                     }
                     _ => return Err(MilaErr::CannotUseIndexingOnNonArrayType { code: 1 }),
@@ -1189,7 +1179,7 @@ impl<'a> LLVM<'a> {
                         self.bld.build_gep(
                             self.kind_to_llvm(&kind)?,
                             dest,
-                            &[index],
+                            &[index.get_type().const_zero(), index],
                             "array_element",
                         )
                     },
@@ -1395,10 +1385,11 @@ impl<'a> LLVM<'a> {
         if !value.is_int_value() {
             panic!("Cast the value to int first");
         }
-        let zero = self.ctx.i64_type().const_zero();
+        let value = value.into_int_value();
+        let zero = value.get_type().const_zero();
         self.bld.build_int_compare(
             IntPredicate::NE,
-            value.into_int_value(),
+            value,
             zero,
             "to_bool_any",
         )
@@ -1415,5 +1406,3 @@ impl<'a> LLVM<'a> {
 
 // TODO
 // forward deklarace pořádně
-// vícerozměrná pole
-// zkusit samply

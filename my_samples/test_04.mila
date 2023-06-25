@@ -1,5 +1,21 @@
 program test_04_arrays;
 
+var arr: array [-10 .. 10] of Integer;
+var matrix: array [-10 .. 10] of array [-10 .. 10] of Integer;
+
 begin
-    exit
+    arr[10] := 42;
+    arr[-10] := 43;
+    printLn(arr[10]);
+    printLn(arr[-10]);
+    printLn(arr[-0]);
+    "
+    ";
+    
+    " Not working (yet)
+    matrix[10][10] := 69;
+    matrix[-10][-10] := 420;
+    printLn(matrix[10][10]);
+    printLn(matrix[-10][-10]);
+    ";
 end.

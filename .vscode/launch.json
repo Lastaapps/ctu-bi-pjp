@@ -19,7 +19,7 @@
                     "kind": "bin"
                 }
             },
-            "args": ["my_samples/test_03.mila"],
+            "args": ["my_samples/test_04.mila"],
             "cwd": "${workspaceFolder}"
         },
         {

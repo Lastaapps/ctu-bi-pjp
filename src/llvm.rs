@@ -55,12 +55,14 @@ enum ValuePair<'a> {
 impl BuiltInType {
     fn fn_name(&self, kind: Option<&Kind>) -> String {
         let suffix = match kind {
-            Some(kind) => 
-                "_".to_string() + match kind {
-                    Kind::Integer => "integer",
-                    Kind::Float => "float",
-                    _ => panic!("Not supported"),
-                },
+            Some(kind) => {
+                "_".to_string()
+                    + match kind {
+                        Kind::Integer => "integer",
+                        Kind::Float => "float",
+                        _ => panic!("Not supported type: {:?}", kind),
+                    }
+            }
             None => "".to_string(),
         };
         match self {
@@ -69,7 +71,8 @@ impl BuiltInType {
             BuiltInType::Print => "built_print",
             _ => panic!("Built name not supported for {self:?}"),
         }
-        .to_string() + &suffix
+        .to_string()
+            + &suffix
     }
 }
 
@@ -183,7 +186,7 @@ impl Program {
         log("Starting verification");
         llvm.mdl.print_to_stderr();
         match llvm.mdl.verify() {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => eprintln!("\n\n{}\n\n", e.to_string().replace("\\n", "\n")),
         };
 
@@ -342,21 +345,30 @@ impl<'a> LLVM<'a> {
             // int
             let args = vec![self.kind_to_llvm(&Kind::Integer)?.into()];
             let fun = self.ctx.i64_type().fn_type(args.as_slice(), false);
-            self.mdl
-                .add_function(&BuiltInType::Print.fn_name(Some(&Kind::Integer)), fun, Some(Linkage::External));
+            self.mdl.add_function(
+                &BuiltInType::Print.fn_name(Some(&Kind::Integer)),
+                fun,
+                Some(Linkage::External),
+            );
 
             // float
             let args = vec![self.kind_to_llvm(&Kind::Float)?.into()];
             let fun = self.ctx.f64_type().fn_type(args.as_slice(), false);
-            self.mdl
-                .add_function(&BuiltInType::Print.fn_name(Some(&Kind::Float)), fun, Some(Linkage::External));
+            self.mdl.add_function(
+                &BuiltInType::Print.fn_name(Some(&Kind::Float)),
+                fun,
+                Some(Linkage::External),
+            );
         };
         // Write
         {
             let args = vec![self.kind_to_llvm(&Kind::String)?.into()];
             let fun = self.ctx.i64_type().fn_type(args.as_slice(), false);
-            self.mdl
-                .add_function(&BuiltInType::Write.fn_name(None), fun, Some(Linkage::External));
+            self.mdl.add_function(
+                &BuiltInType::Write.fn_name(None),
+                fun,
+                Some(Linkage::External),
+            );
         };
         // ReadLine
         {
@@ -397,6 +409,11 @@ impl<'a> LLVM<'a> {
                 let value = self.bld.build_global_string_ptr(&"", "const_string");
                 value.as_basic_value_enum()
             }
+            Kind::Array(element_kind, from, to) => self
+                .kind_to_llvm(&element_kind)?
+                .array_type((to - from + 1) as u32)
+                .const_zero()
+                .as_basic_value_enum(),
             kind => panic!("No other type is expected, not even {:?}", kind),
         };
 
@@ -856,9 +873,7 @@ impl<'a> LLVM<'a> {
                 if !lhs.is_int_value() {
                     return Err(MilaErr::LogicOnIntOnly);
                 }
-                self.bld
-                    .build_not(lhs.into_int_value(), "not")
-                    .into()
+                self.bld.build_not(lhs.into_int_value(), "not").into()
             }
             Expr::CastToInt(lhs) => {
                 log("Cast to int");
@@ -898,15 +913,13 @@ impl<'a> LLVM<'a> {
                     .ok_or_else(|| MilaErr::FunctionNotDefined(name.clone()))?;
                 let mangled = fun.declaration.mangle_name();
 
-                let fun_value= self.mdl.get_function(&mangled).unwrap();
+                let fun_value = self.mdl.get_function(&mangled).unwrap();
 
-                let call_site = self.bld
-                    .build_direct_call(fun_value, args.as_slice(), "function_call");
+                let call_site =
+                    self.bld
+                        .build_direct_call(fun_value, args.as_slice(), "function_call");
                 if fun.declaration.return_type != Kind::Void {
-                    call_site
-                    .try_as_basic_value()
-                    .left()
-                    .unwrap()
+                    call_site.try_as_basic_value().left().unwrap()
                 } else {
                     // Would require some kind of trickery
                     // Perfect solution would be if the procedures
@@ -1022,7 +1035,10 @@ impl<'a> LLVM<'a> {
                     BuiltInType::ReadLine => {
                         assert_size(built_in, args, 1)?;
                         let (space, kind) = self.get_mem_space(&args[0], true)?;
-                        let func = self.mdl.get_function(&built_in.fn_name(Some(&kind))).unwrap();
+                        let func = self
+                            .mdl
+                            .get_function(&built_in.fn_name(Some(&kind)))
+                            .unwrap();
                         let args = [space.into()];
                         self.bld
                             .build_indirect_call(
@@ -1040,7 +1056,13 @@ impl<'a> LLVM<'a> {
                         let space = self.compile_expr(&args[0])?;
                         let kind = self.llvm_to_kind(&space.get_type());
 
-                        let func = self.mdl.get_function(&built_in.fn_name(Some(&kind))).unwrap();
+                        eprintln!("dbg: {:?}", space);
+                        eprintln!("dbg: {:?}", kind);
+
+                        let func = self
+                            .mdl
+                            .get_function(&built_in.fn_name(Some(&kind)))
+                            .unwrap();
                         let args = [space.into()];
                         self.bld
                             .build_indirect_call(
@@ -1074,9 +1096,9 @@ impl<'a> LLVM<'a> {
             }
             Expr::ArrayAccess(_store, _) => {
                 log("Array access");
-                let arr_ptr = self.get_mem_space(expr, false)?.0;
+                let (arr_ptr, kind) = self.get_mem_space(expr, false)?;
                 self.bld
-                    .build_load(arr_ptr.get_type(), arr_ptr, "array read")
+                    .build_load(self.kind_to_llvm(&kind)?, arr_ptr, "array read")
             }
         })
     }
@@ -1099,8 +1121,8 @@ impl<'a> LLVM<'a> {
 
                 let (dest, kind) = self.get_mem_space(store, is_write)?;
 
-                let (subkind, index) = match kind {
-                    Kind::Array(subkind, from, _) => {
+                let (sub_kind, index) = match kind.clone() {
+                    Kind::Array(sub_kind, from, _) => {
                         let offset = self.ctx.i64_type().const_int(from.abs() as u64, true);
                         let signed = if from < 0 {
                             offset
@@ -1109,23 +1131,38 @@ impl<'a> LLVM<'a> {
                             self.bld.build_int_sub(zero, offset, "inverse index")
                         };
                         let result = self.bld.build_int_add(index, signed, "update index");
-                        (subkind, result)
+                        (*sub_kind, result)
                     }
                     _ => return Err(MilaErr::CannotUseIndexingOnNonArrayType { code: 1 }),
                 };
 
-                let array = if dest.as_basic_value_enum().is_array_value() {
-                    dest.as_basic_value_enum().into_array_value()
-                } else {
-                    return Err(MilaErr::CannotUseIndexingOnNonArrayType { code: 2 });
-                };
+                // dest.as_basic_value_enum().into_array_value();
+                // let deferenced: BasicValueEnum<'a> = self.bld.build_load(
+                //     self.kind_to_llvm(&sub_kind)?,
+                //     dest, "array_dereference",
+                // );
+
+                // eprintln!("{:?}", self.llvm_to_kind(&dest.as_basic_value_enum().get_type()));
+                // eprintln!("{:?}", self.llvm_to_kind(&deferenced.get_type()));
+
+                // let array = if deferenced.as_basic_value_enum().is_array_value() {
+                //     dest.as_basic_value_enum().into_array_value()
+                // } else {
+                //     return Err(MilaErr::CannotUseIndexingOnNonArrayType { code: 2 });
+                // };
 
                 (
                     unsafe {
-                        self.bld
-                            .build_gep(array.get_type(), dest, &[index], "get, array, scary")
+                        let idk = self.bld.build_gep(
+                            self.kind_to_llvm(&kind)?,
+                            dest,
+                            &[index],
+                            "get, array, scary",
+                        );
+                        eprintln!("fdsa{:?}", &idk);
+                        idk
                     },
-                    *subkind,
+                    sub_kind,
                 )
             }
             _ => return Err(MilaErr::AssignNotSupported(expr.clone())),

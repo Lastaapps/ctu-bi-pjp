@@ -527,6 +527,7 @@ impl<'a> LLVM<'a> {
                     .try_cast_into_kind(cond, &Kind::Integer)?
                     .as_basic_value_enum()
                     .into_int_value();
+                let cond = self.to_bool_int(&cond);
                 self.bld.build_conditional_branch(cond, body_cb, follow_cb);
 
                 log("While: body");
@@ -550,6 +551,7 @@ impl<'a> LLVM<'a> {
                     .as_basic_value_enum()
                     .into_int_value();
 
+                let cond = self.to_bool_int(&cond);
                 self.bld
                     .build_conditional_branch(cond, if_true_cb, follow_cb);
 
@@ -581,6 +583,7 @@ impl<'a> LLVM<'a> {
                         .as_basic_value_enum()
                         .into_int_value()
                 };
+                let cond = self.to_bool_int(&cond);
 
                 self.bld
                     .build_conditional_branch(cond, if_true_cb, if_false_cb);
@@ -841,9 +844,9 @@ impl<'a> LLVM<'a> {
                 if !lhs.is_int_value() || !rhs.is_int_value() {
                     return Err(MilaErr::LogicOnIntOnly);
                 }
-                self.bld
-                    .build_and(lhs.into_int_value(), rhs.into_int_value(), "and")
-                    .into()
+                let lhs = self.to_bool_any(&lhs);
+                let rhs = self.to_bool_any(&rhs);
+                self.bld.build_and(lhs, rhs, "and").into()
             }
             Expr::Or(lhs, rhs) => {
                 log("Or");
@@ -852,9 +855,9 @@ impl<'a> LLVM<'a> {
                 if !lhs.is_int_value() || !rhs.is_int_value() {
                     return Err(MilaErr::LogicOnIntOnly);
                 }
-                self.bld
-                    .build_or(lhs.into_int_value(), rhs.into_int_value(), "or")
-                    .into()
+                let lhs = self.to_bool_any(&lhs);
+                let rhs = self.to_bool_any(&rhs);
+                self.bld.build_or(lhs, rhs, "or").into()
             }
             Expr::Xor(lhs, rhs) => {
                 log("Xor");
@@ -863,9 +866,9 @@ impl<'a> LLVM<'a> {
                 if !lhs.is_int_value() || !rhs.is_int_value() {
                     return Err(MilaErr::LogicOnIntOnly);
                 }
-                self.bld
-                    .build_xor(lhs.into_int_value(), rhs.into_int_value(), "xor")
-                    .into()
+                let lhs = self.to_bool_any(&lhs);
+                let rhs = self.to_bool_any(&rhs);
+                self.bld.build_xor(lhs, rhs, "xor").into()
             }
             Expr::Not(lhs) => {
                 log("Not");
@@ -873,7 +876,8 @@ impl<'a> LLVM<'a> {
                 if !lhs.is_int_value() {
                     return Err(MilaErr::LogicOnIntOnly);
                 }
-                self.bld.build_not(lhs.into_int_value(), "not").into()
+                let lhs = self.to_bool_any(&lhs);
+                self.bld.build_not(lhs, "not").into()
             }
             Expr::CastToInt(lhs) => {
                 log("Cast to int");
@@ -1136,31 +1140,14 @@ impl<'a> LLVM<'a> {
                     _ => return Err(MilaErr::CannotUseIndexingOnNonArrayType { code: 1 }),
                 };
 
-                // dest.as_basic_value_enum().into_array_value();
-                // let deferenced: BasicValueEnum<'a> = self.bld.build_load(
-                //     self.kind_to_llvm(&sub_kind)?,
-                //     dest, "array_dereference",
-                // );
-
-                // eprintln!("{:?}", self.llvm_to_kind(&dest.as_basic_value_enum().get_type()));
-                // eprintln!("{:?}", self.llvm_to_kind(&deferenced.get_type()));
-
-                // let array = if deferenced.as_basic_value_enum().is_array_value() {
-                //     dest.as_basic_value_enum().into_array_value()
-                // } else {
-                //     return Err(MilaErr::CannotUseIndexingOnNonArrayType { code: 2 });
-                // };
-
                 (
                     unsafe {
-                        let idk = self.bld.build_gep(
+                        self.bld.build_gep(
                             self.kind_to_llvm(&kind)?,
                             dest,
                             &[index],
-                            "get, array, scary",
-                        );
-                        eprintln!("fdsa{:?}", &idk);
-                        idk
+                            "array_element",
+                        )
                     },
                     sub_kind,
                 )
@@ -1358,4 +1345,32 @@ impl<'a> LLVM<'a> {
             act: val_kind,
         })
     }
+
+    fn to_bool_any(&mut self, value: &BasicValueEnum<'a>) -> IntValue<'a> {
+        log("To bool (any)");
+        if !value.is_int_value() {
+            panic!("Cast the value to int first");
+        }
+        let zero = self.ctx.i64_type().const_zero();
+        self.bld.build_int_compare(
+            IntPredicate::NE,
+            value.into_int_value(),
+            zero,
+            "to_bool_any",
+        )
+    }
+
+    fn to_bool_int(&mut self, value: &IntValue<'a>) -> IntValue<'a> {
+        log("To bool (int)");
+        
+        let zero = value.get_type().const_zero();
+        self.bld
+            .build_int_compare(IntPredicate::NE, value.clone(), zero, "to_bool_int")
+    }
 }
+
+// TODO
+// break, continue
+// forward deklarace pořádně
+// vícerozměrná pole
+// zkusit samply

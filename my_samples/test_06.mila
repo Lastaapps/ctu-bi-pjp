@@ -1,5 +1,54 @@
 program test_functions;
 
+function func_no_params(): Integer; begin
+    func_no_params := 42;
+    exit;
+end;
+
+function pow(x: Integer; a: Integer): Integer;
+var acu: Integer;
 begin
+    acu := 1;
+    pow := x + a + acu;
+    "
+    for 
+    func_no_params = 42;
+    exit;
+    ";
+end;
+
+var arr: array [-2 .. 2] of Float;
+procedure log_array(data: array [-2 .. 2] of Float); forward;
+procedure log_array(data: array [-2 .. 2] of Float);
+var i, is_first: Integer;
+begin
+    is_first := 1;
+    write("Array content: [");
+    for i := -2 to 2 + 1 do begin
+        if not(is_first) then begin
+            write(", ");
+        end
+        else
+            is_first := not(is_first);
+
+        print(arr[i]);
+    end;
+    writeLn("]");
+end;
+
+procedure recursive(n: Integer);
+begin
+    printLn(n);
+    if n <> 0 then
+        recursive(n - 1);
+    printLn(n);
+end;
+
+begin
+    printLn(func_no_params());
+    printLn(pow(3, 2));
+    arr[0] := 42;
+    log_array(arr);
+    recursive(5);
     exit
 end.

@@ -41,6 +41,7 @@ pub enum MilaErr {
     CannotChangeConstantVariable(String),
     LogicOnIntOnly,
     FunctionNotDeclared(String),
+    FunctionWrongArgCount{ name: String, exp: usize, act: usize},
     ForIntOnly,
     BuiltInWrongArgCount(BuiltInType, usize),
     NoBreakContinueContext,
@@ -102,6 +103,7 @@ impl Display for MilaErr {
             }
             Self::LogicOnIntOnly => write!(f, "Logic operations can be performed on integers only"),
             Self::FunctionNotDeclared(name) => write!(f, "Function with name {name} is not declared"),
+            Self::FunctionWrongArgCount { name, exp, act } => write!(f, "Function {name} expects {exp} arguments, not {act}."),
             Self::ForIntOnly => write!(f, "For can be used only with integer variables and values"),
             Self::BuiltInWrongArgCount(kind, count) => write!(f, "Built in {:?} does not support {} args.", kind, count),
             Self::NoBreakContinueContext => write!(f, "Cannot break from here"),

@@ -20,6 +20,7 @@ pub enum KeywordType {
     Var,
     Integer,
     Float,
+    String,
     For,
     Do,
     Array,

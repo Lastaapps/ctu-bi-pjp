@@ -14,13 +14,16 @@ begin
 end;
 
 var arr: array [-2 .. 2] of Float;
-procedure log_array(data: array [-2 .. 2] of Float); forward;
-procedure log_array(data: array [-2 .. 2] of Float);
+
+procedure log_array(tag: String; data: array [-2 .. 2] of Float); forward;
+
+procedure log_array(tag: String; data: array [-2 .. 2] of Float);
 var i, is_first: Integer;
 begin
     is_first := 1;
-    write("Array content: [");
-    for i := -2 to 2 + 1 do begin
+    write(tag);
+    write(": [");
+    for i := -2 to 2 do begin
         if not(is_first) then begin
             write(", ");
         end
@@ -44,7 +47,7 @@ begin
     writeLn(func_no_params());
     writeLn(pow(3, 2));
     arr[0] := 42;
-    log_array(arr);
+    log_array("arr", arr);
     recursive(5);
     exit
 end.

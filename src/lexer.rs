@@ -128,6 +128,7 @@ impl LexerImpl {
             "var" => Token::Keyword(KeywordType::Var),
             "integer" => Token::Keyword(KeywordType::Integer),
             "float" => Token::Keyword(KeywordType::Float),
+            "string" => Token::Keyword(KeywordType::String),
             "for" => Token::Keyword(KeywordType::For),
             "do" => Token::Keyword(KeywordType::Do),
             "array" => Token::Keyword(KeywordType::Array),

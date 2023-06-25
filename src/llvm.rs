@@ -83,7 +83,7 @@ impl Kind {
         match self {
             Kind::Integer => "int",
             Kind::Float => "float",
-            Kind::String => "str",
+            Kind::String => "string",
             Kind::Array(k, f, t) => return format!("arr<{}>[{},{}]", &k.mangle_name(), f, t),
             Kind::Void => "void",
         }
@@ -97,7 +97,7 @@ impl Declaration {
         self.params
             .iter()
             .fold(base, |x, y| x + "_" + &y.kind.mangle_name())
-            + "+"
+            + ":"
             + &self.return_type.mangle_name()
     }
 }
@@ -340,23 +340,23 @@ impl<'a> LLVM<'a> {
         Ok(space.as_pointer_value())
     }
 
-    fn declare_function(&self, function: &Declaration) -> Outcome<FunctionValue<'a>> {
+    fn declare_function(&self, declaration: &Declaration) -> Outcome<FunctionValue<'a>> {
         let mut args = vec![];
-        for arg in function.params.iter() {
+        for arg in declaration.params.iter() {
             args.push(self.kind_to_llvm(&arg.kind)?.into());
         }
         let args = args;
 
-        let fn_type = if Kind::Void == function.return_type {
+        let fn_type = if Kind::Void == declaration.return_type {
             self.ctx.void_type().fn_type(args.as_slice(), false)
         } else {
-            self.kind_to_llvm(&function.return_type)?
+            self.kind_to_llvm(&declaration.return_type)?
                 .fn_type(args.as_slice(), false)
         };
 
         Ok(self
             .mdl
-            .add_function(&function.mangle_name(), fn_type, None))
+            .add_function(&declaration.mangle_name(), fn_type, None))
     }
 
     fn declare_builtin_functions(&self) -> Outcome<()> {
@@ -975,7 +975,16 @@ impl<'a> LLVM<'a> {
                     .functions
                     .get(name)
                     .ok_or_else(|| MilaErr::FunctionNotDeclared(name.clone()))?;
-                let mangled = fun.declaration.mangle_name();
+                let declaration = &fun.declaration;
+                let mangled = declaration.mangle_name();
+
+                if fun.declaration.params.len() != args.len() {
+                    return Err(MilaErr::FunctionWrongArgCount { 
+                        name: declaration.name.clone(),
+                        exp: declaration.params.len(),
+                        act: args.len() }
+                    )
+                }
 
                 let fun_value = self.mdl.get_function(&mangled).unwrap();
 

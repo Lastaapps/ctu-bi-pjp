@@ -5,8 +5,7 @@ var x, y: Integer;
 procedure my_print(expected: Integer; actual: Integer); begin
     write(expected);
     write(" - ");
-    write(actual);
-    writeln("");
+    writeLn(actual);
 end;
 
 begin

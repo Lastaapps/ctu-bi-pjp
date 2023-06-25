@@ -18,6 +18,4 @@ begin
     matrix[-10][-10] := 420;
     writeLn(matrix[10][10]);
     writeLn(matrix[-10][-10]);
-    " Not working (yet)
-    ";
 end.

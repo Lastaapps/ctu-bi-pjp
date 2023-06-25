@@ -260,6 +260,8 @@ fn parse_type(parser: &mut Parser) -> Outcome<Kind> {
 
         Token::Keyword(KT::Float) => Kind::Float,
 
+        Token::Keyword(KT::String) => Kind::String,
+
         Token::Keyword(KT::Array) => {
             parser.assert_token(Token::Bracket(BI { sq: true, op: true }))?;
 

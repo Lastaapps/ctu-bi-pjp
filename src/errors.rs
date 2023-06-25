@@ -27,6 +27,7 @@ pub enum MilaErr {
     // llvm
     DuplicateGlobal(String),
     DuplicateFunName(String),
+    DeclaredNotDefined(String),
     DuplicateFunAndParamName(String),
     VoidAsVariable,
     WrongCast,
@@ -39,7 +40,7 @@ pub enum MilaErr {
     VarNotFound(String),
     CannotChangeConstantVariable(String),
     LogicOnIntOnly,
-    FunctionNotDefined(String),
+    FunctionNotDeclared(String),
     ForIntOnly,
     BuiltInWrongArgCount(BuiltInType, usize),
     NoBreakContinueContext,
@@ -83,6 +84,7 @@ impl Display for MilaErr {
             }
             Self::DuplicateFunName(name) => write!(f, "Duplicate fun name: {name}"),
             Self::DuplicateFunAndParamName(name) => write!(f, "Conflicting fun and param name: {name}"),
+            Self::DeclaredNotDefined(name) => write!(f, "Function {} is declared, but not defined", name),
             Self::VoidAsVariable => write!(f, "Variable cannot be of the type: void"),
             Self::WrongCast => write!(f, "Wrong cast, somewhere..."),
             Self::AssignNotSupported(expr) => write!(f, "Assign to {:?} not supported", expr),
@@ -99,7 +101,7 @@ impl Display for MilaErr {
                 write!(f, "Constant {name} cannot be changed")
             }
             Self::LogicOnIntOnly => write!(f, "Logic operations can be performed on integers only"),
-            Self::FunctionNotDefined(name) => write!(f, "Function with name {name} is not defined"),
+            Self::FunctionNotDeclared(name) => write!(f, "Function with name {name} is not declared"),
             Self::ForIntOnly => write!(f, "For can be used only with integer variables and values"),
             Self::BuiltInWrongArgCount(kind, count) => write!(f, "Built in {:?} does not support {} args.", kind, count),
             Self::NoBreakContinueContext => write!(f, "Cannot break from here"),

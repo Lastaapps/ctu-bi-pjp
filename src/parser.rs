@@ -89,8 +89,7 @@ fn parse_program(parser: &mut Parser) -> Outcome<Program> {
 fn parse_scope(parser: &mut Parser) -> Outcome<Scope> {
     let mut vars: Vec<Variable> = vec![];
     let mut consts: Vec<Constant> = vec![];
-    let mut declarations: Vec<Declaration> = vec![];
-    let mut functions: Vec<Function> = vec![];
+    let mut declarations: Vec<(Declaration, Option<Function>)> = vec![];
     let mut main: Option<Statement> = None;
 
     loop {
@@ -101,12 +100,7 @@ fn parse_scope(parser: &mut Parser) -> Outcome<Scope> {
             Token::Keyword(KT::Const) => consts.append(&mut parse_constant(parser)?),
 
             Token::Keyword(KT::Function) | Token::Keyword(KT::Procedure) => {
-                let (dec, func_opt) = parse_fun_or_dec(parser)?;
-                // declarations.push(decs);
-                if let Some(fun) = func_opt {
-                    declarations.push(dec);
-                    functions.push(fun);
-                };
+                declarations.push(parse_fun_or_dec(parser)?);
             }
 
             Token::Keyword(KT::Begin) => {
@@ -121,7 +115,6 @@ fn parse_scope(parser: &mut Parser) -> Outcome<Scope> {
                     vars: vars,
                     constants: consts,
                     declarations: declarations,
-                    functions: functions,
                     main: main.ok_or(MilaErr::MissingMainFunction)?,
                 })
             }

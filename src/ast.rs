@@ -36,8 +36,7 @@ pub struct Program {
 pub struct Scope {
     pub vars: Vec<Variable>,
     pub constants: Vec<Constant>,
-    pub declarations: Vec<Declaration>,
-    pub functions: Vec<Function>,
+    pub declarations: Vec<(Declaration, Option<Function>)>,
     pub main: Statement,
 }
 

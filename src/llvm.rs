@@ -139,19 +139,35 @@ impl Program {
         names.insert(&main_name);
 
         for declaration in self.scope.declarations.iter() {
-            if names.contains(&declaration.name) {
-                return Err(MilaErr::DuplicateFunName(declaration.name.clone()));
+            if declaration.1 == None {
+                continue; // Will be checked bellow
             }
-            names.insert(&declaration.name);
+
+            if names.contains(&declaration.0.name) {
+                return Err(MilaErr::DuplicateFunName(declaration.0.name.clone()));
+            }
+            names.insert(&declaration.0.name);
 
             // check for fun name and one of the params is the same
             let mut names: HashSet<&String> = HashSet::new();
-            names.insert(&declaration.name);
-            for param in declaration.params.iter() {
+            names.insert(&declaration.0.name);
+            for param in declaration.0.params.iter() {
                 if names.contains(&param.name) {
                     return Err(MilaErr::DuplicateFunAndParamName(param.name.clone()));
                 }
                 names.insert(&param.name);
+            }
+        }
+
+        let mut defined = HashSet::new();
+        for declaration in self.scope.declarations.iter() {
+            if declaration.1 == None { continue; }
+            defined.insert(declaration.0.mangle_name());
+        }
+        for declaration in self.scope.declarations.iter() {
+            if let Some(_) = declaration.1 { continue; }
+            if !defined.contains(&declaration.0.mangle_name()) {
+                return Err(MilaErr::DeclaredNotDefined(declaration.0.name.clone()));
             }
         }
 
@@ -226,24 +242,25 @@ impl<'a> LLVM<'a> {
         }
         self.mila.symbols.push(root_map);
 
-        log("Declaring functions");
-        for declaration in prog.scope.declarations.iter() {
-            let value = self.declare_function(declaration)?;
-            self.mila.functions.insert(
-                declaration.name.clone(),
-                FunSymbol {
-                    declaration: declaration.clone(),
-                    value: value,
-                },
-            );
-        }
-
         log("Declaring built in functions");
         self.declare_builtin_functions()?;
 
-        log("Compiling functions");
-        for function in prog.scope.functions.iter() {
-            self.compile_function(function)?;
+        for (declaration, func) in prog.scope.declarations.iter() {
+            if !self.mila.functions.contains_key(&declaration.name) {
+                log("Declaring function");
+                let value = self.declare_function(declaration)?;
+                self.mila.functions.insert(
+                    declaration.name.clone(),
+                    FunSymbol {
+                        declaration: declaration.clone(),
+                        value: value,
+                    },
+                );
+            }
+            if let Some(func) = func {
+                log("Compiling function");
+                self.compile_function(func)?;
+            }
         }
 
         self.compile_main(&prog.scope.main)?;
@@ -957,7 +974,7 @@ impl<'a> LLVM<'a> {
                     .mila
                     .functions
                     .get(name)
-                    .ok_or_else(|| MilaErr::FunctionNotDefined(name.clone()))?;
+                    .ok_or_else(|| MilaErr::FunctionNotDeclared(name.clone()))?;
                 let mangled = fun.declaration.mangle_name();
 
                 let fun_value = self.mdl.get_function(&mangled).unwrap();
@@ -1197,7 +1214,7 @@ impl<'a> LLVM<'a> {
             .mila
             .functions
             .get(&function.name)
-            .ok_or_else(|| MilaErr::FunctionNotDefined(function.name.clone()))?
+            .ok_or_else(|| MilaErr::FunctionNotDeclared(function.name.clone()))?
             .clone();
         let declaration = &fun_symbol.declaration;
 
@@ -1403,6 +1420,3 @@ impl<'a> LLVM<'a> {
             .build_int_compare(IntPredicate::NE, value.clone(), zero, "to_bool_int")
     }
 }
-
-// TODO
-// forward deklarace pořádně
